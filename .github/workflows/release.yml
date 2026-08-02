@@ -10,6 +10,10 @@ on:
 
 permissions:
   contents: write
+  # attest-build-provenance signs with a short-lived OIDC token and writes
+  # the attestation to the repo's attestation store.
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -35,6 +39,14 @@ jobs:
             echo "Tag $tag does not match manifest version $version" >&2
             exit 1
           fi
+
+      - name: Attest the release assets
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
 
       - name: Publish release
         env:
