@@ -302,7 +302,7 @@ function attachPointerGesture(
 			document.body.removeClass("pb-dragging");
 			el.removeClass("pb-lift");
 			ghost?.remove();
-			if (canceled && started) opts.onCancel();
+			if (cancelled && started) opts.onCancel();
 		};
 		const onBlur = () => teardown(true);
 		const onMove = (ev: PointerEvent) => {
