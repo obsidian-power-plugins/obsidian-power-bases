@@ -1,0 +1,44 @@
+name: Identity check
+
+# The pre-push hook is the fast guard, but it lives on one machine and any
+# --no-verify walks past it. This runs on GitHub instead, so a commit carrying
+# the wrong name cannot sit unnoticed on the default branch, where it would
+# poison the contributors list for hours.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  identity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Every commit must carry the brand identity
+        run: |
+          BRAND_EMAIL='312091367+powerplugins-dev@users.noreply.github.com'
+          BRAND_NAME='Power Plugins'
+          fail=0
+
+          while IFS='|' read -r sha an ae cn ce; do
+            if [ "$ae" != "$BRAND_EMAIL" ] || [ "$ce" != "$BRAND_EMAIL" ] \
+               || [ "$an" != "$BRAND_NAME" ] || [ "$cn" != "$BRAND_NAME" ]; then
+              echo "::error::$sha  author=$an <$ae>  committer=$cn <$ce>"
+              fail=1
+            fi
+          done < <(git log --format='%H|%an|%ae|%cn|%ce')
+
+          if git log --format='%B' | grep -qi '^co-authored-by:'; then
+            echo "::error::a Co-Authored-By trailer is present in the history"
+            git log --format='%H %s' --grep='co-authored-by' -i
+            fail=1
+          fi
+
+          if [ "$fail" -ne 0 ]; then
+            echo "Rewrite the offending commits before this reaches anyone."
+            exit 1
+          fi
+          echo "OK: every commit is authored and committed by $BRAND_NAME."

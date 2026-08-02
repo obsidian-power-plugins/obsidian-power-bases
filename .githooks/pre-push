@@ -1,0 +1,40 @@
+#!/bin/sh
+# Refuses to push any commit that is not authored AND committed by the brand
+# identity, or that carries a Co-Authored-By trailer. A wrong identity is only
+# expensive after it reaches GitHub, where the contributors cache pins it for
+# hours, so this catches it while a rewrite is still cheap.
+BRAND_EMAIL='312091367+powerplugins-dev@users.noreply.github.com'
+BRAND_NAME='Power Plugins'
+ZERO='0000000000000000000000000000000000000000'
+fail=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ "$local_sha" = "$ZERO" ] && continue          # deleting a ref
+    if [ "$remote_sha" = "$ZERO" ]; then
+        range="$local_sha --not --remotes"           # new branch on the remote
+    else
+        range="$remote_sha..$local_sha"
+    fi
+    for c in $(git rev-list $range 2>/dev/null); do
+        ae=$(git log -1 --format='%ae' "$c"); an=$(git log -1 --format='%an' "$c")
+        ce=$(git log -1 --format='%ce' "$c"); cn=$(git log -1 --format='%cn' "$c")
+        if [ "$ae" != "$BRAND_EMAIL" ] || [ "$ce" != "$BRAND_EMAIL" ] ||
+           [ "$an" != "$BRAND_NAME" ]  || [ "$cn" != "$BRAND_NAME" ]; then
+            echo "BLOCKED $(git rev-parse --short $c)  author=$an <$ae>  committer=$cn <$ce>"
+            fail=1
+        fi
+        if git log -1 --format='%B' "$c" | grep -qi '^co-authored-by:'; then
+            echo "BLOCKED $(git rev-parse --short $c)  carries a Co-Authored-By trailer"
+            fail=1
+        fi
+    done
+done
+
+if [ "$fail" -ne 0 ]; then
+    echo
+    echo "Push refused: the commits above would put the wrong name in Contributors."
+    echo "Single commit:  git commit --amend --reset-author"
+    echo "Whole history:  rerun brand-identity.sh on this repo"
+    exit 1
+fi
+exit 0
