@@ -559,7 +559,7 @@ eq(evalFormula("formula.nope", {}).ok, false, "unknown formula ref is not ok");
 	eq(
 		mergeForSave(idleMemory, idleBaseline, disk),
 		{ basesFolder: "new", valueColors: { Status: { Done: "#0f0" } } },
-		"an idle device keeps another device's colours and carries only its own change"
+		"an idle device keeps another device's colors and carries only its own change"
 	);
 }
 eq(mergeForSave({ k: "new" }, { k: "old" }, { k: "other" }), { k: "new" }, "our own change still wins over disk");

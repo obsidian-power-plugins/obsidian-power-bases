@@ -27,7 +27,7 @@ export function compareVersions(a, b) {
 /** Whether deploying `incoming` over an installed `installed` would move the
  *  vault backwards. Equal versions are fine: rebuilding and redeploying the
  *  same version is what developing this plugin looks like all day. An absent or
- *  unreadable installed version is not a downgrade either — there is nothing
+ *  unreadable installed version is not a downgrade either, there is nothing
  *  there to lose. */
 export function isDowngrade(installed, incoming) {
 	if (!installed) return false;

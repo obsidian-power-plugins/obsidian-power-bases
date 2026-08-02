@@ -302,7 +302,7 @@ function attachPointerGesture(
 			document.body.removeClass("pb-dragging");
 			el.removeClass("pb-lift");
 			ghost?.remove();
-			if (cancelled && started) opts.onCancel();
+			if (canceled && started) opts.onCancel();
 		};
 		const onBlur = () => teardown(true);
 		const onMove = (ev: PointerEvent) => {
@@ -4087,7 +4087,7 @@ class PowerCalendarView extends PBView {
 			cls: "pb-cal-title",
 			text:
 				new Date(days[0] + "T00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
-				" – " +
+				", " +
 				new Date(days[6] + "T00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
 		});
 		this.navBtn(head, "chevron-right", "Next week", () => setAnchor(addDays(anchor, 7)));

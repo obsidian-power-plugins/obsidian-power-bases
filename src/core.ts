@@ -1,4 +1,4 @@
-// Power Bases: pure view logic. No Obsidian imports — everything here is
+// Power Bases: pure view logic. No Obsidian imports, everything here is
 // unit-tested with Node (npm test).
 //
 // Bases hands views rendered property Values; the only portable way to a raw
@@ -1467,7 +1467,7 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 /**
  * The same three-way rule, entry by entry.
  *
- * A key holding one value per item — per folder, per field, per speaker — is a
+ * A key holding one value per item (per folder, per field, per speaker) is a
  * whole vault's worth of settings behind a single name, and merging it whole
  * meant changing ONE of them published all of them. Every item another device
  * configured since this one last read was erased by a device that had never
