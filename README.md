@@ -150,3 +150,9 @@ npm run build     # type-check + bundle main.js
 npm test          # pure-logic unit tests (Node)
 npm run deploy    # build and copy into every local vault
 ```
+
+## Support
+
+Power Bases is built and maintained by one person. If it earns a place in your
+daily vault, you can [buy me a coffee](https://buymeacoffee.com/powerplugins).
+Nothing in the plugin is held back either way.
