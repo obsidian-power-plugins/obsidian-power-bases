@@ -1,7 +1,7 @@
 {
 	"id": "powerbases",
 	"name": "Power Bases",
-	"version": "1.33.5",
+	"version": "1.33.6",
 	"minAppVersion": "1.10.2",
 	"description": "Add board, calendar, timeline, chart, gallery, and table views to Bases, with inline editing, colors, rollups, field types, formulas, and CSV import.",
 	"author": "Power Plugins",
