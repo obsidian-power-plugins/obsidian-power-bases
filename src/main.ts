@@ -2249,7 +2249,7 @@ class PowerBoardView extends PBView {
 			},
 			onMove: (_dx, _dy, x, y) => {
 				target = null;
-				if (line) line.style.display = "none";
+				line?.removeClass("is-shown");
 				hoverLane?.removeClass("pb-drop");
 				hoverLane = null;
 				const el = document.elementFromPoint(x, y) as HTMLElement | null;
@@ -2272,7 +2272,7 @@ class PowerBoardView extends PBView {
 				const overCard = el.closest(".pb-card") as HTMLElement | null;
 				const show = (rect: DOMRect, atTop: boolean) => {
 					if (!line) return;
-					line.style.display = "block";
+					line.addClass("is-shown");
 					line.style.left = rect.left + "px";
 					line.style.width = rect.width + "px";
 					line.style.top = (atTop ? rect.top : rect.bottom) - 1 + "px";
@@ -2374,7 +2374,7 @@ class PowerBoardView extends PBView {
 			},
 			onMove: (_dx, _dy, x, y) => {
 				targetBefore = undefined;
-				if (vline) vline.style.display = "none";
+				vline?.removeClass("is-shown");
 				const el = document.elementFromPoint(x, y) as HTMLElement | null;
 				const overLane = el?.closest?.(".pb-lane, .pb-swim-headcell") as HTMLElement | null;
 				if (!overLane || !this.rootEl.contains(overLane)) return;
@@ -2389,7 +2389,7 @@ class PowerBoardView extends PBView {
 					targetBefore = next && next.getAttribute("data-noval") !== "1" ? next.getAttribute("data-lane") : null;
 				}
 				if (vline) {
-					vline.style.display = "block";
+					vline.addClass("is-shown");
 					vline.style.left = (before ? rect.left : rect.right) - 1 + "px";
 					vline.style.top = rect.top + "px";
 					vline.style.height = rect.height + "px";
@@ -4360,14 +4360,17 @@ class PowerTableView extends PBView {
 			this.attachColReorder(th, p, cols, hr);
 			ci++;
 		}
+		// Rollup and add-column headers are a fixed size, so the widths live in
+		// styles.css. These two constants exist only so the running total the
+		// table is sized against agrees with what the browser will lay out.
+		const RU_W = 140;
+		const ADD_W = 34;
 		for (const r of rollups) {
-			const rth = hr.createEl("th", { cls: "pb-th pb-ru", text: r.label });
-			rth.style.width = "140px";
-			totalW += 140;
+			hr.createEl("th", { cls: "pb-th pb-ru", text: r.label });
+			totalW += RU_W;
 		}
 		const addTh = hr.createEl("th", { cls: "pb-th pb-th-add", attr: { "aria-label": "Add a column" } });
-		addTh.style.width = "34px";
-		totalW += 34;
+		totalW += ADD_W;
 		setIcon(addTh.createSpan(), "plus");
 		addTh.addEventListener("click", () => this.openAddColumn());
 		const firstTh = hr.cells[0];
@@ -7191,9 +7194,9 @@ class PowerTimelineView extends PBView {
 			}
 			bar.style.setProperty("--pb-bar", hue);
 			if (milestone) {
-				// a diamond pinned to the start date; move-only, no duration
+				// a diamond pinned to the start date; move-only, no duration.
+				// pb-tl-ms carries the 16px square it is rotated from.
 				bar.style.left = off * ppd + Math.max(0, ppd / 2 - 8) + "px";
-				bar.style.width = "16px";
 				this.attachBarDrag(bar, { en: it.en, start: it.start, end: it.start }, ppd, startKeyName, null);
 				return;
 			}

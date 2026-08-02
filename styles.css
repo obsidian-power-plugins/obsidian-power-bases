@@ -169,6 +169,12 @@
 	display: none;
 }
 
+/* the drag only knows where to draw the line once the pointer is over a drop
+   target, so the line spends most of a gesture hidden */
+.pb-dropline.is-shown {
+	display: block;
+}
+
 body.pb-dragging {
 	cursor: grabbing;
 }
@@ -277,6 +283,7 @@ button.pb-rule-add {
 /* milestones: a diamond pinned to the start date */
 .pb-tl-bar.pb-tl-ms {
 	top: 7px;
+	width: 16px;
 	height: 16px;
 	border-radius: 3px;
 	transform: rotate(45deg);
@@ -603,6 +610,10 @@ button.pb-embed-del svg {
 	display: none;
 }
 
+.pb-droplane.is-shown {
+	display: block;
+}
+
 /* the fold button hides until the header is hovered */
 button.pb-lane-fold {
 	width: 22px;
@@ -696,6 +707,13 @@ button.pb-lane-fold svg {
 .pb-td.pb-ru {
 	color: var(--text-muted);
 	font-style: italic;
+}
+
+/* Fixed width, because a rollup holds a short computed value and should not
+   compete with the data columns for room. Kept in step with RU_W in main.ts,
+   which is what the table's own width is totted up from. */
+.pb-th.pb-ru {
+	width: 140px;
 }
 
 /* ---------- Power Timeline ---------- */
@@ -2292,7 +2310,7 @@ button.pb-swatch-default {
 .pb-th.pb-th-add {
 	cursor: default;
 	color: var(--text-faint);
-	width: 1%;
+	width: 34px; /* in step with ADD_W in main.ts */
 	white-space: nowrap;
 	text-align: center;
 }
