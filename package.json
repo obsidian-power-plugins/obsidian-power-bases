@@ -1,6 +1,6 @@
 {
 	"name": "powerbases",
-	"version": "1.33.6",
+	"version": "1.33.7",
 	"description": "Obsidian plugin: board, calendar, timeline, chart, gallery, and table views for Bases",
 	"main": "main.js",
 	"type": "module",
