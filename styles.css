@@ -2918,3 +2918,29 @@ body.theme-light .notice:not(.pw-self-styled) {
 body.theme-light .notice:not(.pw-self-styled) a {
 	color: var(--text-accent);
 }
+
+/* ---- Touch devices ----------------------------------------------------
+ * Several controls sit at opacity:0 and are revealed by a :hover rule. A
+ * touch screen never hovers, so on a phone or tablet those controls would
+ * never appear at all: the row selector, the lane fold button, and the
+ * list-entry actions were unreachable rather than merely subtle. Reveal
+ * them wherever the pointer cannot hover, and give the smallest of them a
+ * finger-sized hit area. Desktop is untouched. */
+@media (hover: none) {
+	input.pb-rowsel,
+	button.pb-lane-fold,
+	.pb-le-acts {
+		opacity: 1;
+	}
+
+	/* 14px is a mouse target; widen the tappable area without moving the box */
+	input.pb-rowsel {
+		width: 18px;
+		height: 18px;
+	}
+	button.pb-lane-fold,
+	.pb-le-act {
+		min-width: 28px;
+		min-height: 28px;
+	}
+}
