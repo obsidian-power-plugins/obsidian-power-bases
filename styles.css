@@ -1637,6 +1637,43 @@ input.pb-check {
 }
 
 /* ---------- tabbed, searchable settings with help popovers ---------- */
+
+/* the masthead above the section list: what this is and which build is running.
+   In the declarative tab it fills an emptied setting row, which is why the
+   display is reset; in the fallback it is a plain div and finds its own padding. */
+.pb-about {
+	display: block;
+}
+
+.pb-about-standalone {
+	padding: 2px 0 12px;
+}
+
+.pb-about-head {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.pb-about-name {
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.pb-about-version {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	background: var(--background-modifier-hover);
+	border-radius: 4px;
+	padding: 1px 6px;
+}
+
+.pb-about-desc {
+	margin-top: 4px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
 .pb-settings-search {
 	margin: 4px 0 10px;
 }

@@ -1,5 +1,5 @@
 import { BasesView, Menu, Modal, Notice, NullValue, Plugin, PluginSettingTab, Setting, TFile, TFolder, parseYaml, requestUrl, setIcon, stringifyYaml } from "obsidian";
-import type { App, BasesAllOptions, BasesEntry, BasesPropertyId, BasesViewConfig, Editor, QueryController } from "obsidian";
+import type { App, BasesAllOptions, BasesEntry, BasesPropertyId, BasesViewConfig, Editor, QueryController, SettingDefinitionItem, SettingDefinitionPage, SettingDefinitionRender } from "obsidian";
 import {
 	AggOp,
 	CellKind,
@@ -429,6 +429,20 @@ const DEFAULT_SETTINGS: PowerBasesSettings = {
 
 /** Settings tab: manage the hand-picked value colors (the only persisted
  *  state), so a base does not have to be open to reset one. */
+/** One row of the settings tab. `build` is handed a Setting whose name and
+ *  description are already set, so it only adds the controls. Rows are data
+ *  rather than drawing code so the two renderers cannot disagree about what
+ *  the tab holds. */
+type Row = { name: string; desc?: string; help?: string; aliases?: string[]; build?: (st: Setting) => void | (() => void) };
+
+/** A run of rows under one heading. A tab with more than one becomes a page
+ *  of headed groups on 1.13, and one section div each in the fallback. */
+type Group = { heading?: string; rows: Row[] };
+
+/** One tab: a native settings page on Obsidian 1.13 and up, a tab button in
+ *  the fallback renderer for older builds. */
+type Page = { id: string; label: string; groups: Group[] };
+
 class PowerBasesSettingTab extends PluginSettingTab {
 	/** Both survive the re-render a color reset triggers, so the tab and search
 	 *  box do not jump back to the top. */
@@ -490,21 +504,139 @@ class PowerBasesSettingTab extends PluginSettingTab {
 		};
 	}
 
+	/** Redraw when the rows themselves change, which resetting a value color
+	 *  does. Obsidian 1.13 rebuilds the tab from getSettingDefinitions(); older
+	 *  builds have only the fallback renderer. */
+	private refresh() {
+		this.closeHelp(); // whatever the popover is anchored to is about to go
+		// update() arrived with the declarative API in 1.13 and minAppVersion is
+		// still 1.10.2, so it is reached through a cast rather than named
+		// outright: an older build has no definitions to rebuild from.
+		const tab = this as unknown as { update?: () => void };
+		if (tab.update) tab.update();
+		else this.renderFallback();
+	}
+
+	/** A small help icon after the name; no aria-label, or Obsidian's native
+	 *  black tooltip doubles up with the popover. */
+	private addHelp(st: Setting, text: string) {
+		const ic = st.nameEl.createSpan({ cls: "pb-setting-help" });
+		setIcon(ic, "help-circle");
+		ic.addEventListener("mouseenter", () => this.openHelp(ic, text, false));
+		ic.addEventListener("mouseleave", () => {
+			if (!this.helpPinned && this.helpAnchor === ic) this.closeHelp();
+		});
+		ic.addEventListener("click", (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			if (this.helpPinned && this.helpAnchor === ic) this.closeHelp();
+			else this.openHelp(ic, text, true);
+		});
+	}
+
+	/** Obsidian 1.13 and up builds the tab from these and never calls display():
+	 *  one native page per tab, standing in for the tab bar the fallback draws
+	 *  for older builds. A tab holding more than one section becomes a page of
+	 *  headed groups, which is what the headings were doing by hand.
+	 *
+	 *  Every row renders itself rather than declaring a `control`. A declarative
+	 *  control writes through Obsidian's generic setControlValue, which would
+	 *  bypass persistSettings and overwrite whatever another device changed. */
+	getSettingDefinitions(): SettingDefinitionItem[] {
+		const pages = this.buildPages();
+		const rowsOf = new Map(pages.map((p) => [p.label, p.groups.flatMap((g) => g.rows)] as const));
+		return [
+			{
+				name: "",
+				searchable: false, // it is a masthead, not a setting
+				render: (st) => {
+					st.settingEl.empty();
+					this.renderAbout(st.settingEl);
+				},
+			},
+			{
+				type: "group",
+				search: {
+					placeholder: "Search settings...",
+					// the entries here are whole tabs, so a tab stays up when anything
+					// inside it matches. Obsidian's own search box, top left, reaches
+					// the individual settings.
+					match: (def, query) => {
+						const q = query.trim().toLowerCase();
+						if (!q) return true;
+						const has = (v: string | undefined) => (v ?? "").toLowerCase().includes(q);
+						return (rowsOf.get(def.name) ?? []).some(
+							(r) => has(r.name) || has(r.desc) || (r.aliases ?? []).some(has)
+						);
+					},
+				},
+				items: pages.map(
+					(p): SettingDefinitionPage => ({
+						type: "page",
+						name: p.label,
+						// a lone unnamed section is the page itself, so it stays flat
+						items:
+							p.groups.length === 1 && !p.groups[0].heading
+								? p.groups[0].rows.map((r) => this.toDefinition(r, p.label))
+								: p.groups.map((g) => ({
+										type: "group" as const,
+										heading: g.heading,
+										items: g.rows.map((r) => this.toDefinition(r, p.label)),
+									})),
+					})
+				),
+			},
+		];
+	}
+
+	/** One row as a definition Obsidian can draw. The name and description are
+	 *  its to render and it rebuilds both on a redraw, so a row only hands back
+	 *  what it hung on the row element itself. */
+	private toDefinition(r: Row, page: string): SettingDefinitionRender {
+		return {
+			name: r.name,
+			desc: r.desc,
+			// searching the tab name still finds its rows, the way a heading match
+			// opened the whole section in the tab bar
+			aliases: [...(r.aliases ?? []), page],
+			render: (st) => {
+				const teardown = r.build?.(st);
+				if (r.help) this.addHelp(st, r.help);
+				return teardown;
+			},
+		};
+	}
+
+	/** What this plugin is and which build is running, above the section list.
+	 *  Read off the manifest so it cannot drift from the released version. */
+	private renderAbout(el: HTMLElement) {
+		el.addClass("pb-about");
+		const head = el.createDiv({ cls: "pb-about-head" });
+		head.createSpan({ cls: "pb-about-name", text: this.plugin.manifest.name });
+		head.createSpan({ cls: "pb-about-version", text: "v" + this.plugin.manifest.version });
+		el.createDiv({ cls: "pb-about-desc", text: this.plugin.manifest.description });
+	}
+
+	/** The pre-1.13 renderer: every section on one page, with a tab bar and a
+	 *  search box of our own because there was no declarative API to hand the
+	 *  work to. Obsidian 1.13 and up ignores this and renders the definitions
+	 *  above instead, so the two only ever differ in how they draw, never in
+	 *  what they draw. */
 	display() {
+		this.renderFallback();
+	}
+
+	private renderFallback() {
 		const root = this.containerEl;
 		root.empty();
 		this.closeHelp(); // a re-render orphans any popover anchored to the old DOM
-		const s = this.plugin.settings;
-		// through persistSettings, never saveData: a whole-object write reverts
-		// whatever another device changed since this one loaded
-		const save = () => void this.plugin.persistSettings();
 
-		const TABS: { id: string; label: string }[] = [
-			{ id: "general", label: "General" },
-			{ id: "fields", label: "Fields" },
-			{ id: "colors", label: "Colors" },
-		];
-		if (!TABS.some((t) => t.id === this.activeTab)) this.activeTab = TABS[0].id;
+		const pages = this.buildPages();
+		if (!pages.some((p) => p.id === this.activeTab)) this.activeTab = pages[0].id;
+
+		// the same masthead the declarative tab shows, minus the setting-item
+		// wrapper it gets there
+		this.renderAbout(root.createDiv({ cls: "pb-about-standalone" }));
 
 		const searchWrap = root.createDiv({ cls: "pb-settings-search" });
 		const searchInput = searchWrap.createEl("input", { cls: "pb-settings-search-input" });
@@ -515,138 +647,25 @@ class PowerBasesSettingTab extends PluginSettingTab {
 		const tabBar = root.createDiv({ cls: "pb-settings-tabs" });
 		const body = root.createDiv({ cls: "pb-settings-body" });
 
-		// each section opens a tab-tagged div; the settings that follow render
-		// into it because c points at the current section. Add new settings via
-		// section(), never a bare setHeading, or they escape the tabs.
-		let c: HTMLElement = body;
-		const section = (name: string, tab: string) => {
-			c = body.createDiv({ cls: "pb-settings-section" });
-			c.dataset.tab = tab;
-			c.dataset.name = name.toLowerCase();
-			new Setting(c).setName(name).setHeading();
-		};
-		// a small help icon after the name; no aria-label, or Obsidian's native
-		// black tooltip doubles up with the popover
-		const help = (st: Setting, text: string) => {
-			const ic = st.nameEl.createSpan({ cls: "pb-setting-help" });
-			setIcon(ic, "help-circle");
-			ic.addEventListener("mouseenter", () => this.openHelp(ic, text, false));
-			ic.addEventListener("mouseleave", () => {
-				if (!this.helpPinned && this.helpAnchor === ic) this.closeHelp();
-			});
-			ic.addEventListener("click", (e) => {
-				e.preventDefault();
-				e.stopPropagation();
-				if (this.helpPinned && this.helpAnchor === ic) this.closeHelp();
-				else this.openHelp(ic, text, true);
-			});
-		};
-
-		section("New bases", "general");
-		new Setting(c)
-			.setName("Folder for embedded bases")
-			.setDesc("Where /base drops the .base file inside a note.")
-			.then((st) =>
-				help(
-					st,
-					"Empty uses your Obsidian attachment location. Point it at a folder like _resources/bases to keep embedded bases out of the way. Bases created from a folder's right-click menu ignore this and stay in the folder you clicked."
-				)
-			)
-			.addText((t) =>
-				t.setPlaceholder("attachment location").setValue(s.basesFolder).onChange((v) => {
-					s.basesFolder = v;
-					save();
-				})
-			);
-
-		section("Identity", "general");
-		new Setting(c)
-			.setName("Your name")
-			.setDesc("Who this vault's edits belong to.")
-			.then((st) => help(st, "Written into created-by and edited-by when the stamp below is on. On a shared or synced vault, this is how a row records who touched it."))
-			.addText((t) =>
-				t.setPlaceholder("e.g. Steve").setValue(s.myName).onChange((v) => {
-					s.myName = v;
-					save();
-				})
-			);
-		new Setting(c)
-			.setName("Stamp changes with your name")
-			.setDesc("Record created and edited, and by whom, on rows.")
-			.then((st) =>
-				help(
-					st,
-					"Every change through a Power view writes edited and edited-by onto the row; rows Power Bases creates (a lane's + New page, calendar double-clicks, CSV rows, templates) also get created and created-by. Add those as columns for Notion's Created by and Last edited by. Edits made outside Power Bases are not tracked, and the stamps ride the same undo as the change."
-				)
-			)
-			.addToggle((t) =>
-				t.setValue(s.stampEdits).onChange((v) => {
-					s.stampEdits = v;
-					save();
-				})
-			);
-
-		section("Place fields", "fields");
-		new Setting(c)
-			.setName("Address autocomplete")
-			.setDesc("Suggest addresses in Place cells, using OpenStreetMap.")
-			.then((st) =>
-				help(
-					st,
-					"As you type in a Place cell, this sends the text to OpenStreetMap (Nominatim) to suggest real addresses. Turn it off to keep Place fully offline: free text plus a Google Maps link. The address is stored as plain text either way."
-				)
-			)
-			.addToggle((t) =>
-				t.setValue(s.placeAutocomplete).onChange((v) => {
-					s.placeAutocomplete = v;
-					save();
-				})
-			);
-
-		section("Value colors", "colors");
-		const keys = Object.keys(s.valueColors);
-		if (!keys.length) {
-			c.createEl("p", {
-				cls: "pb-modal-desc",
-				text: "None yet. Right-click a board lane header or a colored table cell to pick a color; your choices are shared across every view and listed here.",
-			});
-		} else {
-			for (const fmKey of keys.sort()) {
-				c.createEl("h4", { text: fmKey, cls: "pb-set-key" });
-				for (const [value, hex] of Object.entries(s.valueColors[fmKey])) {
-					new Setting(c)
-						.setName(value)
-						.then((st) => {
-							const dot = st.nameEl.createSpan({ cls: "pb-set-dot" });
-							dot.style.background = hex;
-							st.nameEl.prepend(dot);
-						})
-						.addButton((b) =>
-							b
-								.setIcon("rotate-ccw")
-								.setTooltip("Reset to automatic")
-								.onClick(async () => {
-									await this.plugin.setValueColor(fmKey, value, null);
-									this.plugin.repaintAll();
-									this.display();
-								})
-						);
+		// one section div per group, tagged with its tab so the tab bar and the
+		// search box below can show and hide whole sections at a time
+		for (const p of pages) {
+			for (const g of p.groups) {
+				const sec = body.createDiv({ cls: "pb-settings-section" });
+				sec.dataset.tab = p.id;
+				sec.dataset.name = (g.heading ?? p.label).toLowerCase();
+				new Setting(sec).setName(g.heading ?? p.label).setHeading();
+				// name and description first, then the row's own content: the same
+				// order Obsidian applies a definition in, so a row that appends to
+				// either element lands in the same place under both renderers
+				for (const r of g.rows) {
+					const st = new Setting(sec).setName(r.name);
+					if (r.desc) st.setDesc(r.desc);
+					if (r.aliases?.length) st.settingEl.dataset.pbAlias = r.aliases.join(" ").toLowerCase();
+					r.build?.(st);
+					if (r.help) this.addHelp(st, r.help);
 				}
 			}
-			new Setting(c)
-				.setName("Clear all value colors")
-				.then((st) => help(st, "Forget every hand-picked value color across the whole vault; values fall back to their automatic hashed hues. Cannot be undone."))
-				.addButton((b) =>
-					b
-						.setButtonText("Clear all")
-						.setWarning()
-						.onClick(async () => {
-							s.valueColors = {};
-							save();
-							this.plugin.repaintAll();
-							this.display();
-						})
-				);
 		}
 
 		const setVisible = (el: HTMLElement, v: boolean) => (el.style.display = v ? "" : "none");
@@ -665,7 +684,7 @@ class PowerBasesSettingTab extends PluginSettingTab {
 				for (const it of items) {
 					const name = it.querySelector(".setting-item-name")?.textContent?.toLowerCase() ?? "";
 					const desc = it.querySelector(".setting-item-description")?.textContent?.toLowerCase() ?? "";
-					const hit = nameHit || name.includes(q) || desc.includes(q);
+					const hit = nameHit || name.includes(q) || desc.includes(q) || (it.dataset.pbAlias ?? "").includes(q);
 					setVisible(it, hit);
 					if (hit) anyHit = true;
 				}
@@ -673,12 +692,12 @@ class PowerBasesSettingTab extends PluginSettingTab {
 			}
 		};
 
-		for (const t of TABS) {
-			const btn = tabBar.createEl("button", { text: t.label, cls: "pb-settings-tab" });
-			btn.toggleClass("is-active", t.id === this.activeTab);
+		for (const p of pages) {
+			const btn = tabBar.createEl("button", { text: p.label, cls: "pb-settings-tab" });
+			btn.toggleClass("is-active", p.id === this.activeTab);
 			btn.onclick = () => {
-				if (this.activeTab === t.id) return;
-				this.activeTab = t.id;
+				if (this.activeTab === p.id) return;
+				this.activeTab = p.id;
 				for (const other of Array.from(tabBar.children) as HTMLElement[]) other.toggleClass("is-active", other === btn);
 				applyView();
 			};
@@ -688,6 +707,157 @@ class PowerBasesSettingTab extends PluginSettingTab {
 			applyView();
 		});
 		applyView();
+	}
+
+	/** Every row of the settings tab, in order, as plain data: the one source
+	 *  both renderers draw from, so they cannot drift apart. Built fresh on each
+	 *  render because the color list is live state. */
+	private buildPages(): Page[] {
+		const s = this.plugin.settings;
+		// through persistSettings, never saveData: a whole-object write reverts
+		// whatever another device changed since this one loaded
+		const save = () => void this.plugin.persistSettings();
+
+		const newBases: Row[] = [
+			{
+				name: "Folder for embedded bases",
+				desc: "Where /base drops the .base file inside a note.",
+				help: "Empty uses your Obsidian attachment location. Point it at a folder like _resources/bases to keep embedded bases out of the way. Bases created from a folder's right-click menu ignore this and stay in the folder you clicked.",
+				build: (st) => {
+					st.addText((t) =>
+						t.setPlaceholder("attachment location").setValue(s.basesFolder).onChange((v) => {
+							s.basesFolder = v;
+							save();
+						})
+					);
+				},
+			},
+		];
+
+		const identity: Row[] = [
+			{
+				name: "Your name",
+				desc: "Who this vault's edits belong to.",
+				help: "Written into created-by and edited-by when the stamp below is on. On a shared or synced vault, this is how a row records who touched it.",
+				build: (st) => {
+					st.addText((t) =>
+						t.setPlaceholder("e.g. Steve").setValue(s.myName).onChange((v) => {
+							s.myName = v;
+							save();
+						})
+					);
+				},
+			},
+			{
+				name: "Stamp changes with your name",
+				desc: "Record created and edited, and by whom, on rows.",
+				help: "Every change through a Power view writes edited and edited-by onto the row; rows Power Bases creates (a lane's + New page, calendar double-clicks, CSV rows, templates) also get created and created-by. Add those as columns for Notion's Created by and Last edited by. Edits made outside Power Bases are not tracked, and the stamps ride the same undo as the change.",
+				build: (st) => {
+					st.addToggle((t) =>
+						t.setValue(s.stampEdits).onChange((v) => {
+							s.stampEdits = v;
+							save();
+						})
+					);
+				},
+			},
+		];
+
+		const placeFields: Row[] = [
+			{
+				name: "Address autocomplete",
+				desc: "Suggest addresses in Place cells, using OpenStreetMap.",
+				help: "As you type in a Place cell, this sends the text to OpenStreetMap (Nominatim) to suggest real addresses. Turn it off to keep Place fully offline: free text plus a Google Maps link. The address is stored as plain text either way.",
+				build: (st) => {
+					st.addToggle((t) =>
+						t.setValue(s.placeAutocomplete).onChange((v) => {
+							s.placeAutocomplete = v;
+							save();
+						})
+					);
+				},
+			},
+		];
+
+		// One group per frontmatter key, so each key's values sit under its own
+		// heading the way the hand-drawn h4 used to put them.
+		const colorGroups: Group[] = [];
+		const keys = Object.keys(s.valueColors);
+		if (!keys.length) {
+			colorGroups.push({
+				rows: [
+					{
+						name: "",
+						build: (st) => {
+							st.settingEl.empty();
+							st.settingEl.createEl("p", {
+								cls: "pb-modal-desc",
+								text: "None yet. Right-click a board lane header or a colored table cell to pick a color; your choices are shared across every view and listed here.",
+							});
+						},
+					},
+				],
+			});
+		} else {
+			for (const fmKey of keys.sort()) {
+				const rows: Row[] = [];
+				for (const [value, hex] of Object.entries(s.valueColors[fmKey])) {
+					rows.push({
+						name: value,
+						build: (st) => {
+							const dot = st.nameEl.createSpan({ cls: "pb-set-dot" });
+							dot.style.background = hex;
+							st.nameEl.prepend(dot);
+							st.addButton((b) =>
+								b
+									.setIcon("rotate-ccw")
+									.setTooltip("Reset to automatic")
+									.onClick(async () => {
+										await this.plugin.setValueColor(fmKey, value, null);
+										this.plugin.repaintAll();
+										this.refresh();
+									})
+							);
+						},
+					});
+				}
+				colorGroups.push({ heading: fmKey, rows });
+			}
+			colorGroups.push({
+				rows: [
+					{
+						name: "Clear all value colors",
+						help: "Forget every hand-picked value color across the whole vault; values fall back to their automatic hashed hues. Cannot be undone.",
+						build: (st) => {
+							st.addButton((b) =>
+								b
+									.setButtonText("Clear all")
+									.setWarning()
+									.onClick(() => {
+										s.valueColors = {};
+										save();
+										this.plugin.repaintAll();
+										this.refresh();
+									})
+							);
+						},
+					},
+				],
+			});
+		}
+
+		return [
+			{
+				id: "general",
+				label: "General",
+				groups: [
+					{ heading: "New bases", rows: newBases },
+					{ heading: "Identity", rows: identity },
+				],
+			},
+			{ id: "fields", label: "Fields", groups: [{ heading: "Place fields", rows: placeFields }] },
+			{ id: "colors", label: "Colors", groups: colorGroups },
+		];
 	}
 }
 
