@@ -1,0 +1,2920 @@
+/* Power Bases: three extra views for Obsidian Bases. Everything renders
+   inside the Bases container below the toolbar; theme variables only. */
+
+.pb-root {
+	height: 100%;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.pb-hint {
+	padding: 18px 14px;
+	color: var(--text-muted);
+	font-size: 13.5px;
+}
+
+/* ---------- Power Board (kanban) ---------- */
+
+.pb-board .pb-lanes {
+	display: flex;
+	gap: 10px;
+	align-items: flex-start;
+	overflow-x: auto;
+	padding: 10px 10px 16px;
+	flex: 1;
+	min-height: 0;
+}
+
+.pb-lane {
+	flex: 0 0 272px;
+	max-height: 100%;
+	display: flex;
+	flex-direction: column;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+}
+
+.pb-lane.pb-drop {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+.pb-lane-head {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	padding: 8px 10px 6px;
+	font-weight: 600;
+	font-size: 13px;
+}
+
+.pb-dot {
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	flex: 0 0 auto;
+}
+
+.pb-lane-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pb-lane-count {
+	margin-left: auto;
+	color: var(--text-faint);
+	font-weight: 400;
+	font-size: 11px;
+}
+
+.pb-lane-body {
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
+	padding: 2px 8px 8px;
+	overflow-y: auto;
+	min-height: 24px;
+}
+
+.pb-card {
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 7px 9px;
+	cursor: default;
+	box-shadow: var(--shadow-s);
+}
+
+.pb-card:hover {
+	border-color: var(--background-modifier-border-hover);
+}
+
+.pb-card.pb-dragging {
+	opacity: 0.5;
+}
+
+.pb-card-title {
+	font-size: 13.5px;
+	font-weight: 500;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.pb-card-prop {
+	display: flex;
+	gap: 6px;
+	margin-top: 3px;
+	font-size: 11.5px;
+	overflow: hidden;
+}
+
+.pb-card-key {
+	color: var(--text-faint);
+	flex: 0 0 auto;
+}
+
+.pb-card-val {
+	color: var(--text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pb-lane-add {
+	padding: 6px 10px 8px;
+	font-size: 12.5px;
+	color: var(--text-muted);
+	cursor: default;
+	border-radius: 0 0 10px 10px;
+}
+
+.pb-lane-add:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+/* over the WIP limit, the count says so */
+.pb-lane-count.pb-over {
+	color: var(--text-error);
+	font-weight: 700;
+}
+
+/* pointer drag: one ghost and one insertion line, nothing per card */
+.pb-ghost {
+	position: fixed;
+	z-index: 9999;
+	pointer-events: none;
+	padding: 4px 10px;
+	border-radius: 6px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border-hover);
+	box-shadow: var(--shadow-s);
+	font-size: 12.5px;
+	max-width: 240px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pb-dropline {
+	position: fixed;
+	z-index: 9999;
+	pointer-events: none;
+	height: 3px;
+	border-radius: 2px;
+	background: var(--interactive-accent);
+	display: none;
+}
+
+body.pb-dragging {
+	cursor: grabbing;
+}
+
+body.pb-dragging .pb-lanes {
+	user-select: none;
+}
+
+.pb-card.pb-lift {
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+	transform: scale(1.02);
+}
+
+.pb-card.pb-drag-src {
+	opacity: 0.45;
+}
+
+.pb-card {
+	-webkit-touch-callout: none;
+}
+
+/* lane settings modal: rule rows */
+.pb-modal-desc {
+	color: var(--text-muted);
+	font-size: 13px;
+}
+
+.pb-rule-head {
+	font-weight: 600;
+	font-size: 13px;
+	margin: 12px 0 4px;
+}
+
+.pb-rule-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 5px 0;
+}
+
+.pb-rule-label {
+	flex: 0 0 auto;
+	font-size: 13px;
+	color: var(--text-muted);
+	min-width: 70px;
+}
+
+.pb-rule-row input {
+	flex: 1;
+	min-width: 0;
+	height: 28px;
+	font-size: 13px;
+}
+
+.pb-rule-row input[type="number"] {
+	flex: 0 0 90px;
+}
+
+.pb-rule-val {
+	flex: 1.4;
+}
+
+button.pb-rule-x {
+	flex: 0 0 auto;
+	width: 26px;
+	height: 26px;
+	padding: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	border-radius: 5px;
+}
+
+button.pb-rule-x:hover {
+	background: var(--background-modifier-hover);
+}
+
+button.pb-rule-x svg {
+	width: 14px;
+	height: 14px;
+}
+
+button.pb-rule-add {
+	margin-top: 4px;
+	font-size: 12.5px;
+}
+
+.pb-modal-btns {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 14px;
+}
+
+/* bulk selection: Alt+click gathers cards */
+.pb-card.pb-selected {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -1px;
+}
+
+/* milestones: a diamond pinned to the start date */
+.pb-tl-bar.pb-tl-ms {
+	top: 7px;
+	height: 16px;
+	border-radius: 3px;
+	transform: rotate(45deg);
+	background: var(--pb-bar);
+	box-shadow: none;
+}
+
+/* progress: the solid fill against the translucent bar */
+.pb-tl-fill {
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	border-radius: 5px 0 0 5px;
+	background: var(--pb-bar);
+	pointer-events: none;
+}
+
+/* lane totals: an aggregate chip beside the count */
+.pb-lane-agg {
+	margin-left: 6px;
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--text-muted);
+	background: var(--background-modifier-hover);
+	border-radius: 4px;
+	padding: 0 5px;
+	flex: 0 0 auto;
+}
+
+/* the undo link inside toasts */
+.pb-undo-link {
+	font-weight: 600;
+	cursor: pointer;
+	text-decoration: underline;
+}
+
+/* embedded views get a sane height instead of collapsing or sprawling */
+.internal-embed .pb-root,
+.block-language-base .pb-root {
+	min-height: 320px;
+	max-height: 560px;
+}
+
+/* date cells: a typeable input plus the calendar button */
+.pb-cell-datewrap {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+.pb-cell-datewrap input.pb-cell-input {
+	flex: 1;
+	min-width: 0;
+}
+button.pb-date-btn {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: none;
+	border-radius: 4px;
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-muted);
+	cursor: default;
+}
+button.pb-date-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+button.pb-date-btn svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* row selection: a slim gutter checkbox per row, select-all in the header.
+   The gutter is only as wide as the checkbox so it reads as a tidy control
+   column, not an empty gap; it appears on hover or when a selection is live. */
+.pb-table thead th:first-child,
+.pb-tr > td:first-child {
+	padding-left: 22px;
+}
+.pb-selhost {
+	position: relative;
+}
+input.pb-rowsel {
+	position: absolute;
+	left: 3px;
+	top: 50%;
+	transform: translateY(-50%);
+	margin: 0;
+	width: 14px;
+	height: 14px;
+	opacity: 0;
+}
+tr:hover > .pb-selhost .pb-rowsel,
+table.pb-hassel .pb-rowsel,
+input.pb-rowsel:checked {
+	opacity: 1;
+}
+tr.pb-tr.is-selected > td {
+	background: color-mix(in srgb, var(--interactive-accent) 9%, transparent);
+}
+/* frozen cells paint opaque; keep the tint readable there too */
+tr.pb-tr.is-selected > td.pb-frozen {
+	background: color-mix(in srgb, var(--interactive-accent) 9%, var(--background-primary));
+}
+
+/* the selection action bar between toolbar and table */
+.pb-selbar {
+	display: none;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 10px;
+	flex: 0 0 auto;
+}
+.pb-selbar.is-on {
+	display: flex;
+}
+.pb-selbar-count {
+	font-size: 12.5px;
+	font-weight: 600;
+	color: var(--text-accent);
+}
+button.pb-selbar-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	height: 26px;
+	padding: 2px 10px;
+	font-size: 12.5px;
+	border: none;
+	box-shadow: none;
+	background: var(--background-modifier-hover);
+	border-radius: 6px;
+	cursor: default;
+}
+button.pb-selbar-btn.is-danger {
+	color: var(--text-error);
+}
+button.pb-selbar-btn svg {
+	width: 13px;
+	height: 13px;
+}
+
+/* manual row order: a grip left of the checkbox, a drop line while dragging.
+   The grip sits faintly visible at rest, so the gutter reads as an intentional
+   drag rail rather than empty space, and turns solid on hover. */
+table.pb-hasrank thead th:first-child,
+table.pb-hasrank .pb-tr > td:first-child {
+	padding-left: 34px;
+}
+table.pb-hasrank input.pb-rowsel {
+	left: 17px;
+}
+.pb-rowgrip {
+	position: absolute;
+	left: 2px;
+	top: 50%;
+	transform: translateY(-50%);
+	display: inline-flex;
+	color: var(--text-faint);
+	opacity: 0.3;
+	cursor: grab;
+	touch-action: none;
+}
+tr:hover > .pb-selhost .pb-rowgrip {
+	opacity: 1;
+}
+.pb-rowgrip svg {
+	width: 12px;
+	height: 14px;
+}
+tr.pb-row-dragging > td {
+	opacity: 0.5;
+}
+.pb-row-dropline {
+	position: fixed;
+	z-index: 90;
+	height: 3px;
+	border-radius: 2px;
+	background: var(--interactive-accent);
+	pointer-events: none;
+}
+
+/* the New row at the table's foot */
+.pb-addrow td {
+	padding: 5px 8px;
+	color: var(--text-faint);
+	border-bottom: none;
+}
+.pb-addrow:hover td {
+	color: var(--text-accent);
+	background: var(--background-modifier-hover);
+}
+.pb-addrow-in {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 13px;
+}
+.pb-addrow-in svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* the delete button, floated onto the base's own top toolbar row */
+button.pb-embed-del {
+	position: absolute;
+	top: 8px;
+	right: 10px;
+	z-index: 5;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: none;
+	border-radius: 5px;
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-faint);
+	cursor: default;
+}
+button.pb-embed-del:hover {
+	color: var(--text-error);
+	background: var(--background-modifier-hover);
+}
+button.pb-embed-del svg {
+	width: 14px;
+	height: 14px;
+}
+/* the native code (source) toggle, hidden inside our embeds only. Kept in
+   layout (visibility, not display) so the toolbar does not reflow and the
+   delete button floats cleanly into the freed top-right slot. */
+.pb-embed-host .pb-native-hidden {
+	visibility: hidden !important;
+}
+
+/* a base inside a note reads as one contained block: a faint frame around
+   the whole embed, native toolbar included */
+.internal-embed:has(.pb-root),
+.block-language-base:has(.pb-root) {
+	display: block;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 6px 10px 10px;
+	margin: 4px 0;
+}
+
+/* ---------- swimlanes: columns x rows, heads rendered once ---------- */
+
+.pb-lanes.pb-swim {
+	flex-direction: column;
+	align-items: stretch;
+	overflow: auto;
+}
+
+.pb-swim-heads {
+	display: flex;
+	gap: 10px;
+	position: sticky;
+	top: 0;
+	z-index: 3;
+	background: var(--background-primary);
+	padding: 2px 0 6px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.pb-swim-headcell {
+	flex: 0 0 272px;
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	padding: 4px 10px;
+	font-weight: 600;
+	font-size: 13px;
+	border-radius: 8px;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.pb-swim-band {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 4px 4px;
+	font-size: 12.5px;
+	font-weight: 700;
+	color: var(--text-muted);
+	position: sticky;
+	left: 0;
+}
+
+.pb-swim-row {
+	display: flex;
+	gap: 10px;
+	align-items: flex-start;
+}
+
+.pb-lane.pb-swim-cell {
+	flex: 0 0 272px;
+	min-height: 56px;
+	background: color-mix(in srgb, var(--background-secondary) 55%, transparent);
+}
+
+.pb-swim-add {
+	text-align: center;
+	padding: 2px 0 5px;
+}
+
+/* lane reorder: a vertical insertion bar between lanes */
+.pb-droplane {
+	position: fixed;
+	z-index: 9999;
+	pointer-events: none;
+	width: 3px;
+	border-radius: 2px;
+	background: var(--interactive-accent);
+	display: none;
+}
+
+/* the fold button hides until the header is hovered */
+button.pb-lane-fold {
+	width: 22px;
+	height: 20px;
+	padding: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	color: var(--text-faint);
+	cursor: pointer;
+	border-radius: 4px;
+	opacity: 0;
+}
+
+.pb-lane-head:hover button.pb-lane-fold {
+	opacity: 1;
+}
+
+button.pb-lane-fold:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+button.pb-lane-fold svg {
+	width: 13px;
+	height: 13px;
+}
+
+/* a folded lane is a slim vertical strip, still a drop target */
+.pb-lane.pb-lane-folded {
+	flex: 0 0 34px;
+	min-height: 120px;
+	cursor: default;
+}
+
+.pb-lane-foldhead {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 7px;
+	padding: 10px 0;
+}
+
+.pb-lane-foldname {
+	writing-mode: vertical-rl;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--text-muted);
+	white-space: nowrap;
+	max-height: 260px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* timeline scheduling guide while dragging an unscheduled chip */
+.pb-tl-guide {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	background: color-mix(in srgb, var(--interactive-accent) 18%, transparent);
+	border-left: 2px solid var(--interactive-accent);
+	z-index: 5;
+	pointer-events: none;
+}
+
+.pb-tl-guidelbl {
+	position: sticky;
+	top: 46px;
+	margin-left: 4px;
+	display: inline-block;
+	padding: 1px 6px;
+	border-radius: 4px;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	font-size: 10.5px;
+	white-space: nowrap;
+}
+
+/* a calendar day lit up as the drop target while a chip drags */
+.pb-day.pb-day-target {
+	border-color: var(--interactive-accent);
+	box-shadow: inset 0 0 0 1px var(--interactive-accent);
+	background: color-mix(in srgb, var(--interactive-accent) 8%, transparent);
+}
+
+/* rollup columns read quieter than real data */
+.pb-th.pb-ru,
+.pb-td.pb-ru {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+/* ---------- Power Timeline ---------- */
+
+.pb-tl {
+	gap: 6px;
+	padding: 8px 10px 12px;
+}
+
+.pb-tl-top {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.pb-tl-unsched {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	min-width: 0;
+}
+
+.pb-tl-unslbl {
+	font-size: 12px;
+	color: var(--text-muted);
+	cursor: default;
+}
+
+.pb-tl-unslbl:hover {
+	color: var(--text-normal);
+}
+
+.pb-tl-unslist {
+	display: flex;
+	gap: 5px;
+	flex-wrap: wrap;
+}
+
+.pb-tl-scroll {
+	overflow: auto;
+	flex: 1;
+	min-height: 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+}
+
+.pb-tl-inner {
+	position: relative;
+	min-height: 100%;
+}
+
+.pb-tl-inner.pb-tl-wk {
+	background-image: repeating-linear-gradient(
+		90deg,
+		color-mix(in srgb, var(--background-secondary) 70%, transparent) 0 var(--pb-wkw),
+		transparent var(--pb-wkw) var(--pb-wk)
+	);
+	background-position-x: var(--pb-wkoff);
+}
+
+.pb-tl-months {
+	display: flex;
+	position: sticky;
+	top: 0;
+	z-index: 4;
+	background: var(--background-primary);
+	border-bottom: 1px solid var(--background-modifier-border);
+	height: 24px;
+	align-items: center;
+}
+
+.pb-tl-month {
+	flex: 0 0 auto;
+	font-size: 11.5px;
+	font-weight: 600;
+	color: var(--text-muted);
+	overflow: hidden;
+	white-space: nowrap;
+	border-left: 1px solid var(--background-modifier-border);
+	padding-left: 5px;
+	height: 100%;
+	display: flex;
+	align-items: center;
+}
+
+.pb-tl-ticks {
+	display: flex;
+	position: sticky;
+	top: 24px;
+	z-index: 4;
+	background: var(--background-primary);
+	border-bottom: 1px solid var(--background-modifier-border);
+	height: 18px;
+	align-items: center;
+}
+
+.pb-tl-tick {
+	flex: 0 0 auto;
+	font-size: 10px;
+	color: var(--text-faint);
+	overflow: hidden;
+	white-space: nowrap;
+	padding-left: 3px;
+	border-left: 1px solid color-mix(in srgb, var(--background-modifier-border) 60%, transparent);
+}
+
+.pb-tl-tick.pb-tl-pad {
+	border-left: none;
+}
+
+.pb-tl-corner {
+	flex: 0 0 220px;
+	position: sticky;
+	left: 0;
+	z-index: 5;
+	background: var(--background-primary);
+	height: 100%;
+	border-right: 1px solid var(--background-modifier-border);
+}
+
+.pb-tl-today {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 2px;
+	background: var(--interactive-accent);
+	opacity: 0.6;
+	z-index: 1;
+	pointer-events: none;
+}
+
+.pb-tl-group {
+	position: sticky;
+	left: 0;
+	padding: 7px 10px 3px;
+	font-size: 12.5px;
+	font-weight: 600;
+	color: var(--text-muted);
+	width: 220px;
+	z-index: 3;
+}
+
+.pb-tl-row {
+	display: flex;
+	height: 30px;
+	align-items: center;
+	border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 55%, transparent);
+}
+
+.pb-tl-name {
+	flex: 0 0 220px;
+	position: sticky;
+	left: 0;
+	z-index: 3;
+	background: var(--background-primary);
+	font-size: 12.5px;
+	padding: 0 10px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	border-right: 1px solid var(--background-modifier-border);
+	height: 100%;
+	display: flex;
+	align-items: center;
+	cursor: default;
+}
+
+.pb-tl-name:hover {
+	color: var(--text-accent);
+}
+
+.pb-tl-cell {
+	position: relative;
+	flex: 0 0 auto;
+	height: 100%;
+}
+
+.pb-tl-bar {
+	position: absolute;
+	top: 5px;
+	height: 20px;
+	border-radius: 5px;
+	background: color-mix(in srgb, var(--pb-bar) 75%, transparent);
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pb-bar) 90%, transparent);
+	cursor: grab;
+	z-index: 2;
+	-webkit-touch-callout: none;
+}
+
+.pb-tl-bar:hover {
+	background: var(--pb-bar);
+}
+
+.pb-tl-bar.pb-tl-dragging {
+	opacity: 0.85;
+	cursor: grabbing;
+	z-index: 6;
+}
+
+.pb-tl-grip {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 8px;
+	cursor: ew-resize;
+}
+
+.pb-tl-grip-l {
+	left: 0;
+	border-radius: 5px 0 0 5px;
+}
+
+.pb-tl-grip-r {
+	right: 0;
+	border-radius: 0 5px 5px 0;
+}
+
+/* ---------- Power Calendar ---------- */
+
+.pb-cal {
+	padding: 8px 10px 12px;
+	gap: 6px;
+}
+
+.pb-cal-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.pb-cal-title {
+	font-weight: 600;
+	font-size: 14.5px;
+	padding: 0 4px;
+}
+
+button.pb-cal-btn {
+	height: 26px;
+	min-width: 26px;
+	padding: 0 8px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 6px;
+	background: transparent;
+	border: 1px solid var(--background-modifier-border);
+	box-shadow: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	font-size: 12px;
+}
+
+button.pb-cal-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+button.pb-cal-btn svg {
+	width: 15px;
+	height: 15px;
+}
+
+.pb-cal-days {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 4px;
+	color: var(--text-faint);
+	font-size: 11px;
+	padding: 2px 0;
+}
+
+.pb-cal-days span {
+	padding-left: 6px;
+}
+
+.pb-cal-grid {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	grid-auto-rows: minmax(84px, 1fr);
+	gap: 4px;
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.pb-day {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 4px;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-height: 0;
+}
+
+.pb-day.pb-out {
+	opacity: 0.45;
+}
+
+.pb-day.pb-today {
+	border-color: var(--interactive-accent);
+	box-shadow: inset 0 0 0 1px var(--interactive-accent);
+}
+
+.pb-day-num {
+	font-size: 11px;
+	color: var(--text-muted);
+	padding-left: 2px;
+}
+
+.pb-today .pb-day-num {
+	color: var(--text-accent);
+	font-weight: 700;
+}
+
+.pb-day-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	overflow-y: auto;
+	min-height: 0;
+}
+
+.pb-chip {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	padding: 2px 5px;
+	border-radius: 5px;
+	background: var(--background-secondary);
+	font-size: 11.5px;
+	cursor: default;
+	overflow: hidden;
+}
+
+.pb-chip:hover {
+	background: var(--background-modifier-hover);
+}
+
+.pb-chip-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	flex: 0 0 auto;
+}
+
+.pb-chip-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* ---------- Power Table (summaries + colors) ---------- */
+
+.pb-tablewrap {
+	overflow: auto;
+	padding: 6px 10px 14px;
+}
+
+.pb-table {
+	border-collapse: collapse;
+	width: 100%;
+	font-size: 13px;
+	/* fixed layout so column widths are honored (drag-to-resize) and content
+	 * truncates instead of stretching a column; the total width is set inline */
+	table-layout: fixed;
+}
+
+.pb-th {
+	text-align: left;
+	font-weight: 600;
+	font-size: 12px;
+	color: var(--text-muted);
+	border-bottom: 2px solid var(--background-modifier-border);
+	padding: 5px 10px 5px 6px;
+	position: sticky;
+	top: 0;
+	background: var(--background-primary);
+	z-index: 1;
+}
+
+.pb-td {
+	border-bottom: 1px solid var(--background-modifier-border);
+	padding: 4px 10px 4px 6px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 340px;
+	/* acts as a minimum in table layout: all-empty rows (a fresh column on a
+	   blank base) keep normal row height instead of collapsing to slivers */
+	height: 28px;
+}
+
+.pb-tr:hover .pb-td {
+	background: var(--background-modifier-hover);
+}
+
+.pb-link {
+	color: var(--text-normal);
+	cursor: default;
+}
+
+.pb-link:hover {
+	color: var(--text-accent);
+	text-decoration: underline;
+}
+
+.pb-grouprow td {
+	padding: 8px 6px 4px;
+	font-weight: 600;
+	font-size: 12.5px;
+	color: var(--text-muted);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/* categorical tint: the value's hue at a readable strength */
+.pb-td.pb-cat {
+	background: color-mix(in srgb, var(--pb-c) 16%, transparent);
+	box-shadow: inset 2px 0 0 0 var(--pb-c);
+}
+
+/* numeric scale tint: stronger accent as the value climbs the range */
+.pb-td.pb-scale {
+	background: color-mix(in srgb, var(--interactive-accent) calc(var(--pb-p) * 28%), transparent);
+}
+
+.pb-foot .pb-td {
+	border-top: 2px solid var(--background-modifier-border);
+	border-bottom: none;
+	font-weight: 600;
+	background: var(--background-secondary);
+}
+
+.pb-agg-op {
+	color: var(--text-faint);
+	font-weight: 400;
+	font-size: 11px;
+	margin-right: 2px;
+}
+
+/* per-group subtotals sit lighter than the grand footer */
+.pb-subtotal .pb-td {
+	font-weight: 500;
+	color: var(--text-muted);
+	background: color-mix(in srgb, var(--background-secondary) 55%, transparent);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.pb-grouprow {
+	cursor: default;
+}
+
+.pb-grouprow:hover td {
+	background: var(--background-modifier-hover);
+}
+
+.pb-gchev {
+	display: inline-flex;
+	vertical-align: -3px;
+	margin-right: 3px;
+	color: var(--text-faint);
+	transition: transform 90ms ease-in-out;
+}
+
+.pb-gchev.is-open {
+	transform: rotate(90deg);
+}
+
+.pb-gchev svg {
+	width: 13px;
+	height: 13px;
+}
+
+.pb-gcount {
+	color: var(--text-faint);
+	font-weight: 400;
+	font-size: 11px;
+}
+
+/* inline editing: quiet affordance, input fills the cell */
+.pb-td.pb-editable {
+	cursor: text;
+}
+
+.pb-td.pb-editable:hover {
+	box-shadow: inset 0 0 0 1px var(--background-modifier-border-hover);
+}
+
+.pb-td.pb-editing {
+	padding: 0;
+	overflow: visible;
+}
+
+input.pb-cell-input {
+	width: 100%;
+	height: 26px;
+	border: none;
+	border-radius: 0;
+	background: var(--background-primary);
+	box-shadow: inset 0 0 0 2px var(--interactive-accent);
+	font-size: 13px;
+	padding: 0 6px;
+}
+
+input.pb-cell-input:focus {
+	outline: none;
+	box-shadow: inset 0 0 0 2px var(--interactive-accent);
+}
+
+input.pb-check {
+	margin: 0;
+}
+
+/* ---------- Power Chart ---------- */
+
+.pb-chart {
+	padding: 12px 14px 16px;
+	gap: 10px;
+	overflow: auto;
+}
+
+.pb-chart-title {
+	font-weight: 600;
+	font-size: 14px;
+}
+
+.pb-chart-body {
+	display: flex;
+	justify-content: center;
+	min-height: 0;
+}
+
+.pb-chart-svg {
+	width: 100%;
+	max-width: 680px;
+	height: auto;
+}
+
+.pb-axis-grid {
+	stroke: var(--background-modifier-border);
+	stroke-width: 1;
+}
+
+.pb-axis-label {
+	fill: var(--text-muted);
+	font-size: 11px;
+}
+
+.pb-bar-rect,
+.pb-donut-seg {
+	transition: opacity 90ms ease;
+}
+
+.pb-bar-rect:hover,
+.pb-donut-seg:hover {
+	opacity: 0.82;
+}
+
+.pb-line {
+	fill: none;
+	stroke-width: 2.5;
+	stroke-linejoin: round;
+	stroke-linecap: round;
+}
+
+.pb-donut-total {
+	fill: var(--text-normal);
+	font-size: 26px;
+	font-weight: 700;
+}
+
+.pb-chart-legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 14px;
+	justify-content: center;
+	padding-top: 4px;
+}
+
+.pb-legend-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.pb-legend-dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 3px;
+	flex: 0 0 auto;
+}
+
+/* ---------- Power Gallery ---------- */
+
+.pb-gallery {
+	padding: 12px;
+	overflow: auto;
+}
+
+.pb-gallery-grid {
+	display: grid;
+	gap: 12px;
+	grid-template-columns: repeat(auto-fill, minmax(var(--pb-gcol, 200px), 1fr));
+}
+
+.pb-gallery-small {
+	--pb-gcol: 140px;
+}
+
+.pb-gallery-medium {
+	--pb-gcol: 200px;
+}
+
+.pb-gallery-large {
+	--pb-gcol: 280px;
+}
+
+.pb-gcard {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+	overflow: hidden;
+	background: var(--background-primary);
+	cursor: default;
+	transition: border-color 90ms ease;
+}
+
+.pb-gcard:hover {
+	border-color: var(--background-modifier-border-hover);
+	box-shadow: var(--shadow-s);
+}
+
+.pb-gcover {
+	aspect-ratio: 16 / 10;
+	background: var(--background-secondary);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+}
+
+.pb-gcover img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	display: block;
+}
+
+.pb-gcover.pb-fit img {
+	object-fit: cover;
+}
+
+.pb-gcover-none {
+	color: var(--text-faint);
+}
+
+.pb-gcover-icon svg {
+	width: 34px;
+	height: 34px;
+}
+
+.pb-gmeta {
+	padding: 7px 9px 9px;
+}
+
+.pb-gtitle {
+	font-size: 13.5px;
+	font-weight: 500;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pb-gprop {
+	font-size: 11.5px;
+	color: var(--text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	margin-top: 2px;
+}
+
+/* ---------- Power Calendar: week view ---------- */
+
+.pb-week {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+.pb-week-cols {
+	display: flex;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+}
+
+.pb-week-gutter-head {
+	flex: 0 0 52px;
+}
+
+.pb-week-colhead {
+	flex: 1 1 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 5px 2px;
+	border-left: 1px solid var(--background-modifier-border);
+	gap: 1px;
+}
+
+.pb-week-dow {
+	font-size: 10.5px;
+	color: var(--text-muted);
+	text-transform: uppercase;
+}
+
+.pb-week-dnum {
+	font-size: 15px;
+	font-weight: 600;
+}
+
+.pb-week-colhead.pb-today .pb-week-dnum {
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
+	border-radius: 50%;
+	width: 22px;
+	height: 22px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.pb-week-allday {
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin-top: 3px;
+}
+
+.pb-week-scroll {
+	overflow-y: auto;
+	flex: 1;
+	min-height: 0;
+}
+
+.pb-week-grid {
+	display: flex;
+	position: relative;
+}
+
+.pb-week-gutter {
+	flex: 0 0 52px;
+}
+
+.pb-week-hour {
+	height: var(--pb-hour, 34px);
+	font-size: 10px;
+	color: var(--text-faint);
+	text-align: right;
+	padding-right: 6px;
+	transform: translateY(-6px);
+}
+
+.pb-week-col {
+	flex: 1 1 0;
+	min-width: 0;
+	position: relative;
+	border-left: 1px solid var(--background-modifier-border);
+}
+
+.pb-week-col.pb-today {
+	background: color-mix(in srgb, var(--interactive-accent) 5%, transparent);
+}
+
+.pb-week-slot {
+	height: var(--pb-hour, 34px);
+	border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 55%, transparent);
+}
+
+.pb-week-event {
+	position: absolute;
+	left: 2px;
+	right: 2px;
+	min-height: 20px;
+	padding: 1px 5px;
+	border-radius: 4px;
+	background: color-mix(in srgb, var(--pb-bar) 22%, var(--background-primary));
+	box-shadow: inset 3px 0 0 0 var(--pb-bar);
+	font-size: 11px;
+	overflow: hidden;
+	cursor: default;
+	z-index: 1;
+}
+
+.pb-week-event:hover {
+	background: color-mix(in srgb, var(--pb-bar) 34%, var(--background-primary));
+}
+
+.pb-week-evtime {
+	color: var(--text-muted);
+	margin-right: 4px;
+	font-variant-numeric: tabular-nums;
+}
+
+.pb-week-evname {
+	font-weight: 500;
+}
+
+/* ---------- 0.9.0: filter, virtualization, settings, focus, mobile ---------- */
+
+.pb-view-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	flex: 0 0 auto;
+}
+
+.pb-board-head,
+.pb-table-head {
+	position: sticky;
+	left: 0;
+	z-index: 6;
+	background: var(--background-primary);
+}
+
+.pb-filterbox {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	background: var(--background-modifier-form-field);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 2px 8px;
+	max-width: 280px;
+	flex: 1 1 220px;
+}
+
+.pb-filterbox-icon {
+	display: flex;
+	color: var(--text-faint);
+}
+
+.pb-filterbox-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+.pb-filterbox input {
+	border: none;
+	background: transparent;
+	box-shadow: none;
+	height: 24px;
+	flex: 1;
+	min-width: 0;
+	font-size: 13px;
+	padding: 0;
+}
+
+.pb-filterbox input:focus {
+	box-shadow: none;
+}
+
+.pb-filterbox-clear {
+	display: flex;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.pb-filterbox-clear svg {
+	width: 13px;
+	height: 13px;
+}
+
+.pb-view-count {
+	color: var(--text-faint);
+	font-size: 11.5px;
+}
+
+/* chunk sentinels take no space */
+.pb-sentinel {
+	height: 1px;
+	padding: 0;
+	margin: 0;
+	border: none;
+}
+
+/* keyboard focus rings that match the accent */
+.pb-gcard:focus-visible,
+.pb-link:focus-visible,
+.pb-card:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+	border-radius: 6px;
+}
+
+/* settings tab: value-color swatches */
+.pb-set-key {
+	margin: 14px 0 2px;
+	font-family: var(--font-monospace);
+	font-size: 12.5px;
+	color: var(--text-muted);
+}
+
+.pb-set-dot {
+	display: inline-block;
+	width: 11px;
+	height: 11px;
+	border-radius: 3px;
+	margin-right: 7px;
+	vertical-align: -1px;
+}
+
+/* ---------- tabbed, searchable settings with help popovers ---------- */
+.pb-settings-search {
+	margin: 4px 0 10px;
+}
+.pb-settings-search-input {
+	width: 100%;
+}
+.pb-settings-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px;
+	margin: 2px 0 18px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+/* the compound selector outranks Obsidian's own settings-area button chrome
+   (a .vertical-tab-content button rule) so the tabs render flat, not as boxes */
+.pb-settings-tabs button.pb-settings-tab,
+.pb-settings-tabs button.pb-settings-tab:hover,
+.pb-settings-tabs button.pb-settings-tab:focus,
+.pb-settings-tabs button.pb-settings-tab:focus-visible,
+.pb-settings-tabs button.pb-settings-tab:active {
+	background: transparent;
+	border: none;
+	border-radius: 0;
+	box-shadow: none;
+	outline: none;
+	margin: 0 0 -1px 0;
+	padding: 7px 14px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
+	border-bottom: 2px solid transparent;
+	cursor: default;
+	transition: color 120ms ease, border-color 120ms ease;
+}
+.pb-settings-tabs button.pb-settings-tab:hover {
+	color: var(--text-normal);
+	border-bottom-color: var(--background-modifier-border-hover);
+}
+.pb-settings-tabs button.pb-settings-tab.is-active {
+	color: var(--text-accent);
+	font-weight: var(--font-semibold);
+	border-bottom-color: var(--interactive-accent);
+}
+/* the first heading inside a tab does not need its big top border */
+.pb-settings-section:first-child .setting-item-heading {
+	border-top: none;
+	padding-top: 0;
+}
+/* the little hoverable "what does this do" icon after a setting's name */
+.pb-setting-help {
+	display: inline-flex;
+	margin-left: 6px;
+	vertical-align: -3px;
+	color: var(--text-faint);
+	cursor: default;
+}
+.pb-setting-help:hover {
+	color: var(--text-muted);
+}
+.pb-setting-help .svg-icon {
+	width: 14px;
+	height: 14px;
+}
+/* the help popover: a soft theme-colored card instead of the native black
+   tooltip; shows on hover, a click pins it open */
+.pb-help-pop {
+	position: fixed;
+	z-index: var(--layer-tooltip);
+	max-width: 340px;
+	padding: 8px 11px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	box-shadow: var(--shadow-s);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	line-height: 1.45;
+}
+
+/* mobile: narrower lanes/cells, stacked table editing, scrollable charts */
+body.is-phone .pb-lane,
+body.is-phone .pb-lane.pb-swim-cell,
+body.is-phone .pb-swim-headcell {
+	flex-basis: 82vw;
+}
+
+body.is-phone .pb-view-head {
+	flex-wrap: wrap;
+}
+
+body.is-phone .pb-filterbox {
+	max-width: none;
+}
+
+body.is-phone .pb-td {
+	max-width: 60vw;
+}
+
+body.is-phone .pb-chart-svg {
+	min-width: 460px;
+}
+
+body.is-phone .pb-week-colhead,
+body.is-phone .pb-week-col {
+	min-width: 84px;
+}
+
+body.is-phone .pb-week-cols,
+body.is-phone .pb-week-grid {
+	min-width: 640px;
+}
+
+body.is-phone .pb-week-scroll {
+	overflow: auto;
+}
+
+/* ---------- 1.0: timeline dependency arrows ---------- */
+
+.pb-tl-deps {
+	position: absolute;
+	top: 0;
+	left: 0;
+	pointer-events: none;
+	z-index: 3;
+	overflow: visible;
+}
+
+.pb-dep {
+	fill: none;
+	stroke: var(--text-muted);
+	stroke-width: 1.5;
+	opacity: 0.75;
+}
+
+.pb-dep-late {
+	stroke: var(--text-error);
+	stroke-width: 2;
+	opacity: 0.95;
+}
+
+.pb-dep-head {
+	fill: var(--text-muted);
+}
+
+.pb-dep-head-late {
+	fill: var(--text-error);
+}
+
+/* a task whose predecessor finishes too late glows red */
+.pb-tl-bar.pb-tl-late {
+	box-shadow: inset 0 0 0 2px var(--text-error);
+}
+
+/* ---------- field types (Power Table) ---------- */
+
+/* the header of a column that can take a field type; right-click to set one.
+ * the flex layout lives on an inner wrapper, not the th, so the th keeps its
+ * table-cell sizing and the header stays aligned with the body columns */
+.pb-th-has-type {
+	cursor: context-menu;
+}
+.pb-th-typed {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.pb-th-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	min-width: 0;
+}
+.pb-th-type {
+	flex: 0 0 auto;
+	padding: 0 5px;
+	border-radius: 6px;
+	font-size: 9.5px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
+}
+
+/* url / email / phone / place cells render as a small icon-led link */
+.pb-linkcell {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	color: var(--text-accent);
+	cursor: pointer;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.pb-linkcell:hover {
+	text-decoration: underline;
+}
+.pb-linkcell-ic {
+	display: inline-flex;
+	flex: 0 0 auto;
+	opacity: 0.7;
+}
+.pb-linkcell-ic svg {
+	width: 13px;
+	height: 13px;
+}
+
+/* person chips carry a hashed or hand-picked hue, like board lanes */
+.pb-person {
+	display: inline-flex;
+	align-items: center;
+	margin: 0 4px 0 0;
+	padding: 1px 8px;
+	border-radius: 10px;
+	font-size: 12px;
+	color: var(--pb-c, var(--text-muted));
+	background: color-mix(in srgb, var(--pb-c, var(--text-muted)) 16%, transparent);
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pb-c, var(--text-muted)) 35%, transparent);
+}
+
+/* an ID reads as monospaced, dim, and non-editable */
+.pb-id {
+	font-family: var(--font-monospace);
+	font-size: 12px;
+	color: var(--text-muted);
+}
+.pb-id-gen,
+.pb-btn-cell {
+	font-size: 11.5px;
+	padding: 1px 9px;
+	border-radius: 6px;
+	cursor: pointer;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-normal);
+}
+.pb-id-gen:hover,
+.pb-btn-cell:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+	color: var(--text-accent);
+}
+.pb-btn-cell {
+	font-weight: 600;
+}
+
+/* verification badge: dim when unset, green when verified, red when expired */
+.pb-verify {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 1px 8px;
+	border-radius: 10px;
+	font-size: 11.5px;
+	font-weight: 600;
+	cursor: pointer;
+}
+.pb-verify-ic {
+	display: inline-flex;
+}
+.pb-verify-ic svg {
+	width: 13px;
+	height: 13px;
+}
+.pb-verify-unverified {
+	color: var(--text-muted);
+	background: var(--background-modifier-border);
+}
+.pb-verify-verified {
+	color: var(--color-green);
+	background: color-mix(in srgb, var(--color-green) 15%, transparent);
+}
+.pb-verify-expired {
+	color: var(--text-error);
+	background: color-mix(in srgb, var(--text-error) 14%, transparent);
+}
+
+/* ---------- CSV import + template modals ---------- */
+
+.pb-csv-preview {
+	margin: 10px 0 4px;
+	max-height: 220px;
+	overflow-y: auto;
+}
+.pb-csv-cols {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.pb-csv-cols li {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 3px 4px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+.pb-csv-col {
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.pb-csv-kind {
+	flex: 0 0 auto;
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var(--text-muted);
+	padding: 0 6px;
+	border-radius: 6px;
+	background: var(--background-modifier-border);
+}
+
+.pb-tpl-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 10px 0;
+}
+.pb-tpl-card {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 10px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	cursor: pointer;
+}
+.pb-tpl-card:hover,
+.pb-tpl-card:focus-visible {
+	background: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+	outline: none;
+}
+.pb-tpl-ic {
+	display: inline-flex;
+	flex: 0 0 auto;
+	margin-top: 1px;
+	color: var(--interactive-accent);
+}
+.pb-tpl-ic svg {
+	width: 20px;
+	height: 20px;
+}
+.pb-tpl-name {
+	font-weight: 700;
+}
+.pb-tpl-desc {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+/* ---------- formula columns + editor ---------- */
+
+/* the "+ Formula" button in the table toolbar */
+.pb-fx-add {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: 8px;
+	padding: 2px 9px;
+	font-size: 12px;
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-muted);
+	cursor: pointer;
+}
+.pb-fx-add:hover {
+	color: var(--text-accent);
+	border-color: var(--interactive-accent);
+}
+.pb-fx-add svg {
+	width: 13px;
+	height: 13px;
+}
+/* the sigma mark on a formula column header */
+.pb-th-fx {
+	display: inline-flex;
+	flex: 0 0 auto;
+	opacity: 0.6;
+}
+.pb-th-fx svg {
+	width: 12px;
+	height: 12px;
+}
+
+.pb-formula-expr {
+	width: 100%;
+	font-family: var(--font-monospace);
+	font-size: 13px;
+	resize: vertical;
+	margin-bottom: 10px;
+}
+.pb-formula-prevrow {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 6px;
+}
+/* a sample row directly after a settings row (Phone/Date format) gets air */
+.pb-rule-row + .pb-formula-prevrow {
+	margin-top: 14px;
+}
+
+/* decimals spinner: a small value box with stacked up/down steppers */
+.pb-spin {
+	display: inline-flex;
+	align-items: stretch;
+}
+.pb-rule-row .pb-spin input {
+	flex: 0 0 64px;
+	width: 64px;
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+}
+.pb-spin-btns {
+	display: flex;
+	flex-direction: column;
+	border: 1px solid var(--background-modifier-border);
+	border-left: none;
+	border-radius: 0 6px 6px 0;
+	overflow: hidden;
+}
+button.pb-spin-b {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	padding: 0;
+	height: auto;
+	min-height: 0;
+	border: none;
+	border-radius: 0;
+	background: var(--background-secondary);
+	box-shadow: none;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+button.pb-spin-b:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+button.pb-spin-b + button.pb-spin-b {
+	border-top: 1px solid var(--background-modifier-border);
+}
+.pb-spin-b svg {
+	width: 11px;
+	height: 11px;
+}
+
+/* the format modals (number, date, phone) stack many rows; let them breathe */
+.pb-fmt .pb-rule-row {
+	margin: 11px 0;
+}
+.pb-fmt .pb-rule-head {
+	margin: 18px 0 8px;
+}
+.pb-fmt .pb-fmt-cols {
+	gap: 6px 14px;
+}
+.pb-fmt .pb-modal-btns {
+	margin-top: 18px;
+}
+.pb-formula-rowsel {
+	margin-left: auto;
+	max-width: 55%;
+}
+.pb-formula-preview {
+	min-height: 32px;
+	padding: 7px 10px;
+	border-radius: 6px;
+	background: var(--background-secondary);
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+.pb-formula-val {
+	font-family: var(--font-monospace);
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--text-normal);
+	overflow-wrap: anywhere;
+}
+.pb-formula-type {
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var(--text-muted);
+}
+.pb-formula-empty,
+.pb-formula-err {
+	color: var(--text-muted);
+	font-size: 12.5px;
+}
+.pb-formula-ref {
+	margin: 12px 0 4px;
+}
+.pb-formula-ref summary {
+	cursor: pointer;
+	color: var(--text-muted);
+	font-size: 12.5px;
+}
+.pb-fn {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	padding: 5px 2px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+.pb-fn-sig {
+	font-size: 12px;
+	color: var(--text-accent);
+	cursor: pointer;
+	width: fit-content;
+}
+.pb-fn-sig.pb-fn-flat {
+	color: var(--text-normal);
+	cursor: default;
+}
+.pb-fn-desc {
+	font-size: 11.5px;
+	color: var(--text-muted);
+}
+.pb-fn-del {
+	margin-right: auto;
+	color: var(--text-error);
+}
+
+/* number format modal: a checkbox and hint that sit inline in a rule row */
+.pb-rule-row input.pb-check[type="checkbox"] {
+	flex: 0 0 auto;
+	width: 16px;
+	height: 16px;
+	min-width: 0;
+}
+.pb-rule-hint {
+	flex: 1;
+	color: var(--text-muted);
+	font-size: 12px;
+}
+
+/* format modals: select controls and the bulk "also apply to" checklist */
+.pb-rule-row select {
+	/* size to the options, dropdown-style, instead of stretching modal-wide */
+	flex: 0 1 auto;
+	min-width: 0;
+	max-width: 100%;
+	height: 28px;
+	font-size: 13px;
+}
+.pb-fmt-cols {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 14px;
+	margin: 2px 0 4px;
+}
+.pb-fmt-col {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 12.5px;
+	color: var(--text-normal);
+	flex: 0 0 auto;
+}
+.pb-fmt-col input.pb-check {
+	width: 15px;
+	height: 15px;
+}
+
+/* ---------- number "Show as" visuals (bar, ring, stars, dots, traffic) ---------- */
+.pb-meter {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+}
+.pb-meter-num {
+	flex: 0 0 auto;
+	font-size: 12.5px;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+.pb-bar-track {
+	flex: 1 1 auto;
+	min-width: 36px;
+	max-width: 120px;
+	height: 7px;
+	border-radius: 4px;
+	background: var(--background-modifier-border);
+	overflow: hidden;
+}
+.pb-bar-fill {
+	height: 100%;
+	border-radius: 4px;
+}
+.pb-ring {
+	flex: 0 0 auto;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: conic-gradient(var(--pb-c) calc(var(--pb-f) * 360deg), var(--background-modifier-border) 0);
+	-webkit-mask: radial-gradient(closest-side, transparent 58%, #000 60%);
+	mask: radial-gradient(closest-side, transparent 58%, #000 60%);
+}
+.pb-stars,
+.pb-dots {
+	display: inline-flex;
+	gap: 1px;
+	line-height: 1;
+}
+.pb-pip {
+	font-size: 13px;
+	color: var(--text-faint);
+}
+.pb-traffic {
+	flex: 0 0 auto;
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	display: inline-block;
+}
+.pb-traffic-red {
+	background: var(--color-red);
+}
+.pb-traffic-amber {
+	background: var(--color-yellow);
+}
+.pb-traffic-green {
+	background: var(--color-green);
+}
+
+/* number-format dialog: color swatches and live preview */
+.pb-numfmt-preview {
+	flex: 1;
+	min-height: 26px;
+	display: flex;
+	align-items: center;
+}
+.pb-swatches {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 5px;
+	flex: 1;
+}
+button.pb-swatch {
+	width: 18px;
+	height: 18px;
+	padding: 0;
+	border-radius: 50%;
+	border: 2px solid transparent;
+	background: none;
+	box-shadow: none;
+	cursor: pointer;
+}
+button.pb-swatch.is-sel {
+	border-color: var(--text-normal);
+}
+button.pb-swatch-default {
+	background: var(--background-modifier-border);
+}
+
+/* + Column: a thin clickable header at the end of the row. Obsidian's
+   clickables keep the arrow cursor, so this does too. Doubled selector:
+   the th also carries pb-th, whose grab cursor is declared later and
+   would win on order at equal specificity. */
+.pb-th.pb-th-add {
+	cursor: default;
+	color: var(--text-faint);
+	width: 1%;
+	white-space: nowrap;
+	text-align: center;
+}
+.pb-th-add:hover {
+	color: var(--text-accent);
+}
+.pb-th-add svg {
+	width: 14px;
+	height: 14px;
+}
+/* image and files field types */
+.pb-img-cell {
+	max-height: 30px;
+	max-width: 64px;
+	border-radius: 3px;
+	object-fit: cover;
+	vertical-align: middle;
+}
+.pb-file-link {
+	color: var(--text-accent);
+	cursor: pointer;
+	text-decoration: underline;
+	margin-right: 7px;
+	font-size: 12.5px;
+}
+
+/* click-to-rename column header */
+.pb-th-rename-hit {
+	cursor: text;
+	border-radius: 3px;
+	padding: 0 2px;
+}
+.pb-th-rename-hit:hover {
+	background: var(--background-modifier-hover);
+}
+input.pb-th-rename {
+	font: inherit;
+	font-weight: 600;
+	width: 100%;
+	min-width: 60px;
+	height: 22px;
+	padding: 0 4px;
+}
+
+/* calendar date picker popover */
+.pb-datepick {
+	position: fixed;
+	z-index: 100;
+	width: 236px;
+	padding: 8px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	box-shadow: var(--shadow-l);
+}
+.pb-dp-head {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-bottom: 6px;
+}
+.pb-dp-title {
+	flex: 1;
+	font-weight: 600;
+	font-size: 13px;
+}
+button.pb-dp-nav,
+button.pb-dp-today {
+	padding: 2px 6px;
+	height: 24px;
+	font-size: 12px;
+	background: transparent;
+	box-shadow: none;
+	border: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	border-radius: 5px;
+}
+button.pb-dp-nav:hover,
+button.pb-dp-today:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+button.pb-dp-nav svg {
+	width: 15px;
+	height: 15px;
+}
+.pb-dp-dow {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	color: var(--text-faint);
+	font-size: 10px;
+	text-align: center;
+	margin-bottom: 2px;
+}
+.pb-dp-grid {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 1px;
+}
+button.pb-dp-day {
+	height: 28px;
+	padding: 0;
+	font-size: 12.5px;
+	background: transparent;
+	box-shadow: none;
+	border: none;
+	color: var(--text-normal);
+	cursor: pointer;
+	border-radius: 5px;
+}
+button.pb-dp-day:hover {
+	background: var(--background-modifier-hover);
+}
+button.pb-dp-day.pb-dp-out {
+	color: var(--text-faint);
+}
+button.pb-dp-day.pb-dp-todaycell {
+	color: var(--text-accent);
+	font-weight: 700;
+}
+button.pb-dp-day.pb-dp-sel {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+.pb-dp-time {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 8px;
+	font-size: 12.5px;
+	color: var(--text-muted);
+}
+.pb-dp-time input {
+	flex: 1;
+	height: 26px;
+}
+.pb-dp-foot {
+	margin-top: 8px;
+	border-top: 1px solid var(--background-modifier-border);
+	padding-top: 6px;
+}
+.pb-dp-foot button {
+	width: 100%;
+	font-size: 12.5px;
+}
+
+/* column resize + drag-reorder */
+.pb-th {
+	cursor: grab;
+}
+.pb-col-resize {
+	position: absolute;
+	top: 0;
+	right: -3px;
+	width: 7px;
+	height: 100%;
+	cursor: col-resize;
+	z-index: 3;
+	touch-action: none;
+}
+.pb-col-resize:hover {
+	background: var(--interactive-accent);
+	opacity: 0.4;
+}
+.pb-th.pb-col-dragging {
+	opacity: 0.45;
+}
+.pb-col-dropline {
+	position: fixed;
+	z-index: 9999;
+	width: 2px;
+	background: var(--interactive-accent);
+	pointer-events: none;
+}
+
+/* column flyout menu (opens on a header click) */
+.pb-colmenu {
+	position: fixed;
+	z-index: 9999;
+	width: 226px;
+	padding: 6px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	box-shadow: var(--shadow-l);
+}
+.pb-colmenu-namerow {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 5px;
+}
+.pb-colmenu-typebtn {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	border-radius: 6px;
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+}
+.pb-colmenu-typebtn.is-clickable {
+	cursor: pointer;
+}
+.pb-colmenu-typebtn.is-clickable:hover,
+.pb-colmenu-typebtn.is-active {
+	background: var(--background-modifier-border);
+	color: var(--text-normal);
+}
+.pb-colmenu-typebtn svg {
+	width: 15px;
+	height: 15px;
+}
+.pb-colmenu-namebox {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	padding: 0 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-primary);
+}
+.pb-colmenu-namebox:focus-within {
+	border-color: var(--background-modifier-border-hover);
+}
+input.pb-colmenu-name {
+	flex: 1;
+	min-width: 0;
+	height: 30px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	box-shadow: none;
+	font-size: 13px;
+	font-weight: 600;
+}
+input.pb-colmenu-name:focus {
+	box-shadow: none;
+}
+.pb-colmenu-title {
+	padding: 3px 8px 6px;
+	font-weight: 600;
+	font-size: 13px;
+}
+.pb-colmenu-rows {
+	display: flex;
+	flex-direction: column;
+}
+.pb-colmenu-sep {
+	height: 1px;
+	background: var(--background-modifier-border);
+	margin: 5px 2px;
+}
+.pb-colmenu-row {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	padding: 5px 8px;
+	border-radius: 5px;
+	font-size: 13px;
+	color: var(--text-normal);
+	cursor: pointer;
+}
+.pb-colmenu-row:hover {
+	background: var(--background-modifier-hover);
+}
+.pb-colmenu-row.is-danger {
+	color: var(--text-error);
+}
+.pb-colmenu-ic {
+	display: inline-flex;
+	color: var(--text-muted);
+}
+.pb-colmenu-row.is-danger .pb-colmenu-ic {
+	color: var(--text-error);
+}
+.pb-colmenu-ic svg {
+	width: 15px;
+	height: 15px;
+}
+.pb-colmenu-label {
+	flex: 1;
+}
+.pb-colmenu-x {
+	display: inline-flex;
+	color: var(--text-faint);
+}
+.pb-colmenu-x svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* a column set to wrap its content instead of truncating */
+.pb-td.pb-wrap {
+	white-space: normal;
+}
+
+/* nested submenu of the column flyout (stays open alongside the main menu) */
+.pb-colmenu-sub {
+	width: 212px;
+}
+.pb-colmenu-row.is-active {
+	background: var(--background-modifier-hover);
+}
+.pb-colmenu-parent .pb-colmenu-x {
+	color: var(--text-muted);
+}
+
+/* sort/filter markers in a column header */
+.pb-th-mark {
+	display: inline-flex;
+	flex: 0 0 auto;
+	color: var(--text-accent);
+}
+.pb-th-mark svg {
+	width: 12px;
+	height: 12px;
+}
+
+/* frozen (pinned) columns stay put while the table scrolls sideways */
+.pb-th.pb-frozen {
+	z-index: 5;
+}
+.pb-td.pb-frozen {
+	position: sticky;
+	z-index: 3;
+	background: var(--background-primary);
+}
+.pb-tr:hover .pb-td.pb-frozen {
+	background: var(--background-modifier-hover);
+}
+.pb-th.pb-frozen-edge,
+.pb-td.pb-frozen-edge {
+	box-shadow: inset -1px 0 0 var(--background-modifier-border);
+}
+
+/* multi-select (list) cell editor popover */
+.pb-listedit {
+	position: fixed;
+	z-index: 9999;
+	max-width: 320px;
+	padding: 8px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	box-shadow: var(--shadow-l);
+}
+.pb-le-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	min-height: 22px;
+	margin-bottom: 6px;
+}
+.pb-le-empty {
+	color: var(--text-faint);
+	font-size: 12px;
+}
+.pb-le-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 1px 7px;
+	border-radius: 10px;
+	font-size: 12px;
+	color: var(--text-normal);
+	background: color-mix(in srgb, var(--pb-c) 24%, transparent);
+}
+.pb-le-cx {
+	display: inline-flex;
+	cursor: pointer;
+	opacity: 0.55;
+}
+.pb-le-cx:hover {
+	opacity: 1;
+}
+.pb-le-cx svg {
+	width: 11px;
+	height: 11px;
+}
+input.pb-le-input {
+	width: 100%;
+	height: 28px;
+	font-size: 13px;
+	margin-bottom: 6px;
+}
+.pb-le-opts {
+	max-height: 220px;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+.pb-le-opt {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	padding: 4px 6px;
+	border-radius: 5px;
+	cursor: pointer;
+	font-size: 13px;
+}
+.pb-le-opt:hover {
+	background: var(--background-modifier-hover);
+}
+.pb-le-oic {
+	display: inline-flex;
+	color: var(--text-muted);
+}
+.pb-le-oic svg {
+	width: 14px;
+	height: 14px;
+}
+.pb-le-olabel {
+	flex: 1;
+	color: var(--text-muted);
+}
+.pb-le-acts {
+	margin-left: auto;
+	display: flex;
+	gap: 3px;
+	opacity: 0;
+}
+.pb-le-opt:hover .pb-le-acts {
+	opacity: 1;
+}
+.pb-le-act {
+	display: inline-flex;
+	padding: 2px;
+	border-radius: 4px;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+.pb-le-act:hover {
+	background: var(--background-modifier-border);
+	color: var(--text-normal);
+}
+.pb-le-act.pb-le-del:hover {
+	color: var(--text-error);
+}
+.pb-le-act svg {
+	width: 13px;
+	height: 13px;
+}
+input.pb-prompt-input {
+	width: 100%;
+	height: 30px;
+	font-size: 14px;
+}
+
+/* Add column: a compact dialog, just wider than its description line; the
+   fields stretch to the dialog and the buttons keep the right edge */
+.pb-addcol-modal {
+	width: 480px;
+}
+.pb-addcol .pb-rule-row select {
+	flex: 1 1 auto;
+	width: auto;
+}
+
+/* Place editor: address (with OpenStreetMap autocomplete) + caption */
+.pb-placeedit {
+	position: fixed;
+	z-index: 9999;
+	padding: 10px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	box-shadow: var(--shadow-l);
+}
+.pb-pe-field {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+.pb-pe-field ~ .pb-pe-field {
+	margin-top: 14px;
+}
+.pb-pe-field label {
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--text-muted);
+}
+input.pb-pe-input {
+	width: 100%;
+	height: 30px;
+	font-size: 13px;
+}
+.pb-pe-sugg {
+	display: flex;
+	flex-direction: column;
+	margin-top: 4px;
+	max-height: 220px;
+	overflow-y: auto;
+}
+.pb-pe-sugg:empty {
+	display: none;
+}
+.pb-pe-opt {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	padding: 5px 6px;
+	border-radius: 6px;
+	font-size: 12px;
+	line-height: 1.3;
+	cursor: pointer;
+}
+.pb-pe-opt:hover {
+	background: var(--background-modifier-hover);
+}
+.pb-pe-opt-ic {
+	display: inline-flex;
+	flex: 0 0 auto;
+	margin-top: 1px;
+	color: var(--text-muted);
+}
+.pb-pe-opt-ic svg {
+	width: 13px;
+	height: 13px;
+}
+
+/* Image/Files picker: search the vault or upload from the computer */
+.pb-filepick {
+	position: fixed;
+	z-index: 9999;
+	padding: 10px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	box-shadow: var(--shadow-l);
+}
+.pb-fp-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	min-height: 22px;
+	margin-bottom: 8px;
+}
+.pb-fp-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 1px 7px;
+	border-radius: 10px;
+	font-size: 12px;
+	background: var(--background-modifier-hover);
+}
+.pb-fp-list {
+	display: flex;
+	flex-direction: column;
+	margin-top: 6px;
+	max-height: 260px;
+	overflow-y: auto;
+}
+.pb-fp-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 6px;
+	border-radius: 6px;
+	cursor: pointer;
+}
+.pb-fp-item:hover {
+	background: var(--background-modifier-hover);
+}
+.pb-fp-thumb {
+	width: 28px;
+	height: 28px;
+	border-radius: 4px;
+	object-fit: cover;
+	flex: 0 0 auto;
+	background: var(--background-secondary);
+}
+.pb-fp-text {
+	min-width: 0;
+}
+.pb-fp-name {
+	font-size: 13px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.pb-fp-path {
+	font-size: 11px;
+	color: var(--text-faint);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.pb-fp-btns {
+	display: flex;
+	gap: 6px;
+	margin-top: 8px;
+}
+.pb-fp-btns button {
+	font-size: 12px;
+	height: 26px;
+	padding: 2px 10px;
+}
+input.pb-fp-fileinput {
+	display: none;
+}
+
+/* ---------------- notices in a light theme ----------------
+   Obsidian paints every notice as a near-black slab. In a dark theme that is
+   just the UI; in a light one it reads as an error box, whatever it says, and
+   a progress count or a to-do total is not an error. Same shape and position,
+   the theme's own surface colors. A notice carrying .pw-self-styled brings its
+   own card (Power Desk's meeting reminder) and is left alone. */
+
+body.theme-light .notice:not(.pw-self-styled) {
+	background: var(--background-primary);
+	color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border);
+	box-shadow: 0 6px 22px rgba(0, 0, 0, 0.14);
+}
+
+body.theme-light .notice:not(.pw-self-styled) a {
+	color: var(--text-accent);
+}

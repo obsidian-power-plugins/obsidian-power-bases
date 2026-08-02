@@ -1,0 +1,29 @@
+{
+	"name": "powerbases",
+	"version": "1.33.4",
+	"description": "Obsidian plugin: board, calendar, timeline, chart, gallery, and table views for Bases",
+	"main": "main.js",
+	"type": "module",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"test": "esbuild src/tests.ts --bundle --format=cjs --outfile=tests.cjs && node tests.cjs",
+		"deploy": "npm run build && node deploy.mjs"
+	},
+	"keywords": [
+		"obsidian",
+		"plugin",
+		"bases",
+		"kanban",
+		"calendar"
+	],
+	"author": "Power Plugins",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^26.1.1",
+		"esbuild": "^0.24.0",
+		"obsidian": "latest",
+		"tslib": "^2.6.2",
+		"typescript": "^5.4.5"
+	}
+}
