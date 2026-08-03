@@ -7,7 +7,7 @@
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-		"test": "esbuild src/tests.ts --bundle --format=cjs --outfile=tests.cjs && node tests.cjs",
+		"test": "esbuild tests/tests.ts --bundle --format=cjs --outfile=tests.cjs && node tests.cjs",
 		"deploy": "npm run build && node deploy.mjs"
 	},
 	"keywords": [

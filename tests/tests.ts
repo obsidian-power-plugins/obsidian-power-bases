@@ -26,7 +26,7 @@ import {
 	textToList,
 	timelineRange,
 	mergeForSave,
-} from "./core";
+} from "../src/core";
 
 let failures = 0;
 function eq(a: unknown, b: unknown, msg: string) {
@@ -152,7 +152,7 @@ eq(coerceForKind("text", "   "), undefined, "blank deletes the property");
 eq(coerceForKind("date", "2026-07-11"), "2026-07-11", "dates stay strings");
 
 // --- undo capture ---
-import { blankBaseYaml, capturePrev, starterBaseYaml } from "./core";
+import { blankBaseYaml, capturePrev, starterBaseYaml } from "../src/core";
 const FM = { status: "Done", tags: ["a", "b"], estimate: 3 };
 const prev = capturePrev(FM, ["status", "tags", "missing"]);
 eq(prev.status, "Done", "scalar captured");
@@ -206,7 +206,7 @@ eq(replaceDateKey("2026-07-11T09:30", "2026-07-14"), "2026-07-14T09:30", "time s
 eq(replaceDateKey("not a date", "2026-07-14"), "2026-07-14", "junk becomes the new date");
 
 // --- week view ---
-import { timeMinutes, weekDays } from "./core";
+import { timeMinutes, weekDays } from "../src/core";
 eq(weekDays("2026-07-15", true), ["2026-07-13", "2026-07-14", "2026-07-15", "2026-07-16", "2026-07-17", "2026-07-18", "2026-07-19"], "Monday-start week around Wed the 15th");
 eq(weekDays("2026-07-15", false)[0], "2026-07-12", "Sunday-start week leads with Sunday the 12th");
 eq(weekDays("2026-07-13", true)[0], "2026-07-13", "a Monday is its own week start");
@@ -229,7 +229,7 @@ eq(rollup("list", 2, ["b", "a", "b"]), "b, a", "list joins distinct in order");
 eq(rollup("sum", 2, ["a", "b"]), "", "no numbers, empty cell");
 
 // --- filter matching ---
-import { matchesQuery } from "./core";
+import { matchesQuery } from "../src/core";
 eq(matchesQuery(["Alpha", "Done"], ""), true, "empty query matches everything");
 eq(matchesQuery(["Alpha Task", "High"], "alp"), true, "token is a substring, case-insensitive");
 eq(matchesQuery(["Alpha", "High"], "alpha high"), true, "all tokens must match across parts");
@@ -237,7 +237,7 @@ eq(matchesQuery(["Alpha", "Low"], "alpha high"), false, "a missing token fails t
 eq(matchesQuery(["Alpha", "Beta"], "alphabeta"), false, "tokens do not bridge across parts");
 
 // --- charts ---
-import { arcPoint, axisTicks, donutSegments, groupAggregate, niceCeil } from "./core";
+import { arcPoint, axisTicks, donutSegments, groupAggregate, niceCeil } from "../src/core";
 eq(
 	groupAggregate(["A", "B", "A", null], ["1", "2", "3", "9"], "count"),
 	[
@@ -271,7 +271,7 @@ eq(arcPoint(50, 50, 40, 0), [50, 10], "fraction 0 is twelve o'clock");
 eq(arcPoint(50, 50, 40, 0.25), [90, 50], "quarter turn is three o'clock");
 
 // --- progress ---
-import { progressPct } from "./core";
+import { progressPct } from "../src/core";
 eq(progressPct(0.4), 40, "fractions scale to percent");
 eq(progressPct(45), 45, "plain percent passes");
 eq(progressPct("80%"), 80, "strings with units parse");
@@ -307,7 +307,7 @@ import {
 	sanitizeKey,
 	safeName,
 	buildBaseYaml,
-} from "./core";
+} from "../src/core";
 eq(externalHref("example.com"), "https://example.com", "bare host gets https");
 eq(externalHref("http://x.io"), "http://x.io", "existing scheme kept");
 eq(externalHref("obsidian://open"), "obsidian://open", "obsidian scheme kept");
@@ -449,7 +449,7 @@ eq(
 );
 
 // --- number formatting ---
-import { formatNumberValue, hasNumberFormat, isMeter, meterFraction, currencySymbol, starCount, formatPercent, trafficState } from "./core";
+import { formatNumberValue, hasNumberFormat, isMeter, meterFraction, currencySymbol, starCount, formatPercent, trafficState } from "../src/core";
 eq(isMeter({ display: "stars" }), true, "stars is a meter");
 eq(isMeter({ display: "dots" }), true, "dots is a meter");
 eq(isMeter({ display: "traffic" }), true, "traffic is a meter");
@@ -494,7 +494,7 @@ eq(hasNumberFormat({}), false, "empty format is no format");
 eq(hasNumberFormat(null), false, "null is no format");
 
 // --- date/time formatting ---
-import { formatDateValue, hasDateFormat } from "./core";
+import { formatDateValue, hasDateFormat } from "../src/core";
 eq(formatDateValue("2026-07-12", { preset: "iso" }), "2026-07-12", "iso date");
 eq(formatDateValue("2026-07-12", { preset: "us" }), "07/12/2026", "us date");
 eq(formatDateValue("2026-07-12", { preset: "eu" }), "12/07/2026", "eu date");
@@ -515,7 +515,7 @@ eq(hasDateFormat({ time: "24h" }), true, "time-only counts");
 eq(hasDateFormat({}), false, "empty date format is none");
 
 // --- formula evaluator (preview) ---
-import { evalFormula, safeFormulaName } from "./core";
+import { evalFormula, safeFormulaName } from "../src/core";
 eq(safeFormulaName("Mo. Rent"), "Mo_Rent", "formula name spaces to underscores");
 eq(safeFormulaName("ppu"), "ppu", "clean name kept");
 eq(safeFormulaName("2024 total"), "f_2024_total", "leading digit gets prefix");
