@@ -1,12 +1,25 @@
 #!/bin/sh
-# Refuses to push any commit that is not authored AND committed by the brand
-# identity, or that carries a Co-Authored-By trailer. A wrong identity is only
-# expensive after it reaches GitHub, where the contributors cache pins it for
-# hours, so this catches it while a rewrite is still cheap.
+# Two things are only expensive after they reach GitHub, so both are caught here.
+#
+# 1. A commit not authored AND committed by the brand identity, or carrying a
+#    Co-Authored-By trailer. A wrong identity pins itself in the contributors
+#    cache for hours; this catches it while a rewrite is still cheap.
+#
+# 2. A versions.json entry with no tag behind it. manifest.json holds a single
+#    version and is overwritten, while versions.json is appended to, so a
+#    session that bumps on every fix and squashes at the end leaves no trace in
+#    the manifest and one orphan line per bump here. Obsidian resolves an
+#    install against this file, so an entry with no release behind it is an
+#    install that fails. Power Desk once advertised 53 such versions.
 BRAND_EMAIL='312091367+powerplugins-dev@users.noreply.github.com'
 BRAND_NAME='Power Plugins'
 ZERO='0000000000000000000000000000000000000000'
 fail=0
+
+# stdin can only be read once, and piping into a loop would put fail= in a
+# subshell where the exit status is lost
+refs=$(mktemp) || exit 1
+cat > "$refs"
 
 while read -r local_ref local_sha remote_ref remote_sha; do
     [ "$local_sha" = "$ZERO" ] && continue          # deleting a ref
@@ -28,13 +41,37 @@ while read -r local_ref local_sha remote_ref remote_sha; do
             fail=1
         fi
     done
-done
+done < "$refs"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ "$local_sha" = "$ZERO" ] && continue
+    case "$remote_ref" in refs/heads/*) ;; *) continue ;; esac   # branches only
+
+    versions=$(git show "$local_sha:versions.json" 2>/dev/null) || continue
+    [ -n "$versions" ] || continue
+
+    # the version being released is exempt: land.sh puts the commit on main
+    # before its tag is pushed, so its tag need not exist on the remote yet
+    current=$(git show "$local_sha:manifest.json" 2>/dev/null |
+        sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+
+    for v in $(printf '%s\n' "$versions" |
+               sed -n 's/^[[:space:]]*"\([0-9][0-9.]*\)"[[:space:]]*:.*/\1/p'); do
+        [ "$v" = "$current" ] && continue
+        git rev-parse -q --verify "refs/tags/$v" >/dev/null 2>&1 && continue
+        echo "BLOCKED versions.json advertises $v, which has no tag"
+        fail=1
+    done
+done < "$refs"
+
+rm -f "$refs"
 
 if [ "$fail" -ne 0 ]; then
     echo
-    echo "Push refused: the commits above would put the wrong name in Contributors."
-    echo "Single commit:  git commit --amend --reset-author"
-    echo "Whole history:  rerun brand-identity.sh on this repo"
+    echo "Push refused."
+    echo "Wrong name:     git commit --amend --reset-author, or rerun brand-identity.sh"
+    echo "Untagged version: tag and release it, or drop the line from versions.json."
+    echo "                  A version advertised there with no release cannot be installed."
     exit 1
 fi
 exit 0
