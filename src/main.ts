@@ -781,55 +781,51 @@ class PowerBasesSettingTab extends PluginSettingTab {
 
 		// One group per frontmatter key, so each key's values sit under its own
 		// heading the way the hand-drawn h4 used to put them.
-		const colorGroups: Group[] = [];
-		const keys = Object.keys(s.valueColors);
-		if (!keys.length) {
-			colorGroups.push({
+		// The whole colour list is one row that draws its own container, so it is
+		// rebuilt every time the tab is rendered. As separate definitions it would
+		// only be rebuilt by update(): reopening a tab renders from the cached
+		// definitions, so a colour picked from a lane header while settings were
+		// shut would not show up until something else refreshed the tab.
+		const colorGroups: Group[] = [
+			{
 				rows: [
 					{
 						name: "",
+						aliases: ["value colors", "clear all value colors"],
 						build: (st) => {
-							st.settingEl.empty();
-							st.settingEl.createEl("p", {
-								cls: "pb-modal-desc",
-								text: "None yet. Right-click a board lane header or a colored table cell to pick a color; your choices are shared across every view and listed here.",
-							});
-						},
-					},
-				],
-			});
-		} else {
-			for (const fmKey of keys.sort()) {
-				const rows: Row[] = [];
-				for (const [value, hex] of Object.entries(s.valueColors[fmKey])) {
-					rows.push({
-						name: value,
-						build: (st) => {
-							const dot = st.nameEl.createSpan({ cls: "pb-set-dot" });
-							dot.style.background = hex;
-							st.nameEl.prepend(dot);
-							st.addButton((b) =>
-								b
-									.setIcon("rotate-ccw")
-									.setTooltip("Reset to automatic")
-									.onClick(async () => {
-										await this.plugin.setValueColor(fmKey, value, null);
-										this.plugin.repaintAll();
-										this.refresh();
-									})
-							);
-						},
-					});
-				}
-				colorGroups.push({ heading: fmKey, rows });
-			}
-			colorGroups.push({
-				rows: [
-					{
-						name: "Clear all value colors",
-						help: "Forget every hand-picked value color across the whole vault; values fall back to their automatic hashed hues. Cannot be undone.",
-						build: (st) => {
-							st.addButton((b) =>
+							const host = st.settingEl;
+							host.empty();
+							host.addClass("pb-colors-host");
+							const keys = Object.keys(s.valueColors);
+							if (!keys.length) {
+								host.createEl("p", {
+									cls: "pb-modal-desc",
+									text: "None yet. Right-click a board lane header or a colored table cell to pick a color; your choices are shared across every view and listed here.",
+								});
+								return;
+							}
+							for (const fmKey of keys.sort()) {
+								new Setting(host).setName(fmKey).setHeading();
+								for (const [value, hex] of Object.entries(s.valueColors[fmKey])) {
+									const row = new Setting(host).setName(value);
+									const dot = row.nameEl.createSpan({ cls: "pb-set-dot" });
+									dot.style.background = hex;
+									row.nameEl.prepend(dot);
+									row.addButton((b) =>
+										b
+											.setIcon("rotate-ccw")
+											.setTooltip("Reset to automatic")
+											.onClick(async () => {
+												await this.plugin.setValueColor(fmKey, value, null);
+												this.plugin.repaintAll();
+												this.refresh();
+											})
+									);
+								}
+							}
+							const clear = new Setting(host).setName("Clear all value colors");
+							this.addHelp(clear, "Forget every hand-picked value color across the whole vault; values fall back to their automatic hashed hues. Cannot be undone.");
+							clear.addButton((b) =>
 								b
 									.setButtonText("Clear all")
 									.setWarning()
@@ -843,9 +839,8 @@ class PowerBasesSettingTab extends PluginSettingTab {
 						},
 					},
 				],
-			});
-		}
-
+			},
+		];
 		return [
 			{
 				id: "general",

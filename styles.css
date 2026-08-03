@@ -1627,6 +1627,12 @@ input.pb-check {
 	color: var(--text-muted);
 }
 
+/* the value-colour list draws its own rows inside one settings row, so that
+   row's own name/value layout is reset out of the way */
+.pb-colors-host {
+	display: block;
+}
+
 .pb-set-dot {
 	display: inline-block;
 	width: 11px;
