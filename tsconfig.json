@@ -1,10 +1,10 @@
 {
 	"compilerOptions": {
-		"baseUrl": ".",
 		"module": "ESNext",
 		"target": "ES2021",
-		"moduleResolution": "node",
+		"moduleResolution": "bundler",
 		"lib": ["DOM", "ES2021"],
+		"types": ["node"],
 		"strictNullChecks": true,
 		"noImplicitAny": true,
 		"isolatedModules": true,
