@@ -741,7 +741,7 @@ class PowerBasesSettingTab extends PluginSettingTab {
 				help: "Written into created-by and edited-by when the stamp below is on. On a shared or synced vault, this is how a row records who touched it.",
 				build: (st) => {
 					st.addText((t) =>
-						t.setPlaceholder("e.g. Steve").setValue(s.myName).onChange((v) => {
+						t.setPlaceholder("Your name or initials").setValue(s.myName).onChange((v) => {
 							s.myName = v;
 							save();
 						})
@@ -3169,6 +3169,18 @@ async function readBaseConfig(app: App, file: TFile): Promise<Record<string, unk
 	return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
 }
 
+/** Read, change, and write the base config in one pass. The read happens inside
+ *  process(), so an edit landing between the two (a sync, another view writing
+ *  its own order) is folded in rather than overwritten. */
+async function updateBaseConfig(app: App, file: TFile, change: (cfg: Record<string, unknown>) => void): Promise<void> {
+	await app.vault.process(file, (data) => {
+		const parsed = parseYaml(data);
+		const cfg = parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+		change(cfg);
+		return stringifyYaml(cfg);
+	});
+}
+
 /** Write a formula into the base's native `formulas:` map and add its column to
  *  the given view's order, so it shows up the moment Bases reloads the file. */
 async function writeFormula(
@@ -3180,33 +3192,33 @@ async function writeFormula(
 	viewType: string,
 	currentOrder: string[]
 ) {
-	const cfg = await readBaseConfig(app, file);
-	const formulas = (cfg.formulas as Record<string, string>) ?? {};
-	formulas[name] = expr;
-	cfg.formulas = formulas;
-	const id = "formula." + name;
-	if (Array.isArray(cfg.views)) {
-		const v = (cfg.views as Record<string, unknown>[]).find((x) => x?.type === viewType && x?.name === viewName);
-		if (v) {
-			const order: string[] = Array.isArray(v.order) ? (v.order as string[]).slice() : currentOrder.slice();
-			if (!order.includes(id)) order.push(id);
-			v.order = order;
+	await updateBaseConfig(app, file, (cfg) => {
+		const formulas = (cfg.formulas as Record<string, string>) ?? {};
+		formulas[name] = expr;
+		cfg.formulas = formulas;
+		const id = "formula." + name;
+		if (Array.isArray(cfg.views)) {
+			const v = (cfg.views as Record<string, unknown>[]).find((x) => x?.type === viewType && x?.name === viewName);
+			if (v) {
+				const order: string[] = Array.isArray(v.order) ? (v.order as string[]).slice() : currentOrder.slice();
+				if (!order.includes(id)) order.push(id);
+				v.order = order;
+			}
 		}
-	}
-	await app.vault.modify(file, stringifyYaml(cfg));
+	});
 }
 
 /** Remove a formula from the base and drop its column from every view's order. */
 async function removeFormula(app: App, file: TFile, name: string) {
-	const cfg = await readBaseConfig(app, file);
-	if (cfg.formulas && typeof cfg.formulas === "object") delete (cfg.formulas as Record<string, string>)[name];
-	const id = "formula." + name;
-	if (Array.isArray(cfg.views)) {
-		for (const v of cfg.views as Record<string, unknown>[]) {
-			if (Array.isArray(v.order)) v.order = (v.order as string[]).filter((o) => o !== id);
+	await updateBaseConfig(app, file, (cfg) => {
+		if (cfg.formulas && typeof cfg.formulas === "object") delete (cfg.formulas as Record<string, string>)[name];
+		const id = "formula." + name;
+		if (Array.isArray(cfg.views)) {
+			for (const v of cfg.views as Record<string, unknown>[]) {
+				if (Array.isArray(v.order)) v.order = (v.order as string[]).filter((o) => o !== id);
+			}
 		}
-	}
-	await app.vault.modify(file, stringifyYaml(cfg));
+	});
 }
 
 /** A new property column added to a view's order in the base file. The property
@@ -3221,56 +3233,56 @@ async function addViewColumn(
 	viewOpts?: Record<string, unknown>,
 	at?: number
 ) {
-	const cfg = await readBaseConfig(app, file);
-	if (Array.isArray(cfg.views)) {
-		const v = (cfg.views as Record<string, unknown>[]).find((x) => x?.type === viewType && x?.name === viewName);
-		if (v) {
-			const order: string[] = Array.isArray(v.order) ? (v.order as string[]).slice() : currentOrder.slice();
-			if (!order.includes(propId)) {
-				if (typeof at === "number") order.splice(Math.max(0, Math.min(order.length, at)), 0, propId);
-				else order.push(propId);
+	await updateBaseConfig(app, file, (cfg) => {
+		if (Array.isArray(cfg.views)) {
+			const v = (cfg.views as Record<string, unknown>[]).find((x) => x?.type === viewType && x?.name === viewName);
+			if (v) {
+				const order: string[] = Array.isArray(v.order) ? (v.order as string[]).slice() : currentOrder.slice();
+				if (!order.includes(propId)) {
+					if (typeof at === "number") order.splice(Math.max(0, Math.min(order.length, at)), 0, propId);
+					else order.push(propId);
+				}
+				v.order = order;
+				if (viewOpts) for (const [k, val] of Object.entries(viewOpts)) v[k] = val;
 			}
-			v.order = order;
-			if (viewOpts) for (const [k, val] of Object.entries(viewOpts)) v[k] = val;
 		}
-	}
-	await app.vault.modify(file, stringifyYaml(cfg));
+	});
 }
 
 /** Rename a column in the base file: swap its id in every view's order and in
  *  any view keys tied to it (color:, agg:), and rename the formula if it is one. */
 async function renamePropertyInBase(app: App, file: TFile, oldId: string, newId: string, isFormula: boolean, oldName: string, newName: string) {
-	const cfg = await readBaseConfig(app, file);
-	if (isFormula && cfg.formulas && typeof cfg.formulas === "object") {
-		const f = cfg.formulas as Record<string, string>;
-		if (f[oldName] !== undefined) {
-			f[newName] = f[oldName];
-			delete f[oldName];
+	await updateBaseConfig(app, file, (cfg) => {
+		if (isFormula && cfg.formulas && typeof cfg.formulas === "object") {
+			const f = cfg.formulas as Record<string, string>;
+			if (f[oldName] !== undefined) {
+				f[newName] = f[oldName];
+				delete f[oldName];
+			}
 		}
-	}
-	if (Array.isArray(cfg.views)) {
-		for (const v of cfg.views as Record<string, unknown>[]) {
-			if (Array.isArray(v.order)) v.order = (v.order as string[]).map((o) => (o === oldId ? newId : o));
-			for (const k of Object.keys(v)) {
-				const colon = k.indexOf(":");
-				if (colon > 0 && k.slice(colon + 1) === oldId) {
-					v[k.slice(0, colon + 1) + newId] = v[k];
-					delete v[k];
+		if (Array.isArray(cfg.views)) {
+			for (const v of cfg.views as Record<string, unknown>[]) {
+				if (Array.isArray(v.order)) v.order = (v.order as string[]).map((o) => (o === oldId ? newId : o));
+				for (const k of Object.keys(v)) {
+					const colon = k.indexOf(":");
+					if (colon > 0 && k.slice(colon + 1) === oldId) {
+						v[k.slice(0, colon + 1) + newId] = v[k];
+						delete v[k];
+					}
 				}
 			}
 		}
-	}
-	await app.vault.modify(file, stringifyYaml(cfg));
+	});
 }
 
 /** Overwrite a view's column order in the base file (column drag-reorder). */
 async function writeViewOrder(app: App, file: TFile, viewName: string, viewType: string, order: string[]) {
-	const cfg = await readBaseConfig(app, file);
-	if (Array.isArray(cfg.views)) {
-		const v = (cfg.views as Record<string, unknown>[]).find((x) => x?.type === viewType && x?.name === viewName);
-		if (v) v.order = order;
-	}
-	await app.vault.modify(file, stringifyYaml(cfg));
+	await updateBaseConfig(app, file, (cfg) => {
+		if (Array.isArray(cfg.views)) {
+			const v = (cfg.views as Record<string, unknown>[]).find((x) => x?.type === viewType && x?.name === viewName);
+			if (v) v.order = order;
+		}
+	});
 }
 
 /** The function reference shown in the formula editor; clicking a signature
