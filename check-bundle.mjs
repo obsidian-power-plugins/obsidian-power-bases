@@ -44,6 +44,42 @@ if (converted > 0) {
 	process.exit(1);
 }
 
+// The community directory rejects a bundle that creates <script> elements at
+// runtime, and it counts them in main.js rather than in src/. Nothing here does
+// that today. The check exists because Power Assistant's first submission was
+// rejected over four of them, none of which were its own code: they came from
+// setImmediate polyfills buried inside a pre-browserified dependency. A
+// dependency added here later can do the same, and this catches it at build
+// time instead of at submission.
+const injections = (bundle.match(/\.createElement\(\s*["'`]script["'`]\s*\)/g) ?? []).length;
+
+if (injections > 0) {
+	console.error(
+		`\n  main.js creates ${injections} <script> element${injections === 1 ? "" : "s"} dynamically.\n` +
+			"  The community directory rejects a submission over this.\n" +
+			"  Find which dependency introduced it. Power Assistant strips the same pattern\n" +
+			"  out of docx with an esbuild onLoad plugin, which is the shape to copy.\n",
+	);
+	process.exit(1);
+}
+console.log("  bundle check: no dynamic script creation");
+
+// Same idea for compiling a string into a function. The directory reports it as
+// dynamic code execution and lists it under what prevents full static analysis
+// of a plugin, so it is worth holding at zero even when the only thing that
+// would introduce it is a polyfill nothing calls with a string.
+const compiles = (bundle.match(/new Function\s*\(/g) ?? []).length + (bundle.match(/(?<![\w.$])eval\s*\(/g) ?? []).length;
+
+if (compiles > 0) {
+	console.error(
+		`\n  main.js has ${compiles} dynamic code execution site${compiles === 1 ? "" : "s"} (eval / new Function).\n` +
+			"  The directory reports these, and they block full static analysis of the plugin.\n" +
+			"  Check which dependency introduced one, and whether it can be rewritten the way\n" +
+			"  Power Assistant rewrites the setimmediate shim in esbuild.config.mjs.\n",
+	);
+	process.exit(1);
+}
+console.log("  bundle check: no dynamic code execution");
 // Lookbehind inside a string reaches RegExp at runtime, so it throws only when
 // that code path runs. Worth seeing, not worth blocking on: some of these are
 // feature-detected by the library that owns them.
