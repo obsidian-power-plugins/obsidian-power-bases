@@ -144,6 +144,16 @@ Power Bases works entirely offline except for one opt-in feature. There is no te
 
 Everything else, including all views, formulas, colors, rollups, and CSV import, runs locally against your vault.
 
+### What the catalog's scan reports
+
+The community catalog scans a plugin for what it is *capable* of, which is not the same as what it does with it. Power Bases reports one thing.
+
+| What the scan reports | What it is | Where |
+| --- | --- | --- |
+| **Vault enumeration** | Listing your notes, which is what a base is built from: gathering the notes a view covers, resolving links between them, and offering files in the pickers. Only paths and frontmatter that a view already displays are read, and the list stays inside Obsidian. | [`src/main.ts`](src/main.ts), the view builders and file pickers |
+
+Power Bases never touches your clipboard, starts no processes, and reads no files outside your vault. There is no `eval`, no `Function` constructor, no `innerHTML`, and no code fetched and run at runtime. Its one network call is the address autocomplete described above, made through Obsidian's own `requestUrl`; there is no `fetch` in the built `main.js` at all.
+
 ## Build from source
 
 ```
