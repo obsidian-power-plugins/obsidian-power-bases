@@ -1,5 +1,5 @@
-import { BasesView, Menu, Modal, Notice, NullValue, Plugin, PluginSettingTab, Setting, TFile, TFolder, parseYaml, requestUrl, setIcon, stringifyYaml } from "obsidian";
-import type { App, BasesAllOptions, BasesEntry, BasesPropertyId, BasesViewConfig, Editor, QueryController, SettingDefinitionItem, SettingDefinitionPage, SettingDefinitionRender } from "obsidian";
+import { BasesView, Menu, Modal, Notice, NullValue, Plugin, PluginSettingTab, Setting, TFile, TFolder, getLinkpath, parseYaml, requestUrl, setIcon, stringifyYaml } from "obsidian";
+import type { App, BasesAllOptions, BasesEntry, BasesPropertyId, BasesViewConfig, Editor, QueryController, SettingDefinitionItem, SettingDefinitionPage, SettingDefinitionRender, WorkspaceLeaf } from "obsidian";
 import {
 	AggOp,
 	CellKind,
@@ -1604,6 +1604,63 @@ export default class PowerBasesPlugin extends Plugin {
 		new Notice("Undone: " + entry.label);
 	}
 
+	/**
+	 * The main-area tab already showing this path, if there is one.
+	 *
+	 * Asked through `getViewState()` rather than `leaf.view.file`, because every
+	 * tab you are not standing in is deferred since 1.7.2: its view is a stand-in
+	 * that holds no file, and reaching for one to ask would load every tab in the
+	 * window. The view state carries the path whether the view is real or not.
+	 *
+	 * Main-area leaves only. A note showing in a sidebar is not a tab, and a note
+	 * deliberately popped out into a window of its own should not have a click in
+	 * a base pulling focus to another window behind your back.
+	 */
+	private openLeafFor(path: string): WorkspaceLeaf | null {
+		const hits: WorkspaceLeaf[] = [];
+		this.app.workspace.iterateRootLeaves((leaf) => {
+			const open = leaf.getViewState().state?.file;
+			if (typeof open === "string" && open === path) hits.push(leaf);
+		});
+		return hits[0] ?? null;
+	}
+
+	/**
+	 * Step to the tab already holding this path, if there is one.
+	 *
+	 * The open itself is left to the caller, so an `openLinkText` that follows
+	 * lands in the tab this just made active. That is how a file-link cell keeps
+	 * Obsidian's own subpath handling and still stops short of a second copy.
+	 */
+	async focusOpenTab(path: string): Promise<void> {
+		const open = this.openLeafFor(path);
+		if (!open) return;
+		await this.app.workspace.revealLeaf(open);
+		this.app.workspace.setActiveLeaf(open, { focus: true });
+	}
+
+	/**
+	 * Show a note: step to the tab already holding it, or open it where you are.
+	 *
+	 * `getLeaf(false)` means "the tab I am standing in" and knows nothing about
+	 * the tab the note is already open in, so opening a row from a base while
+	 * standing anywhere else hands you a second copy of it: two scroll positions,
+	 * two undo histories, and edits landing in whichever one you looked at last.
+	 * A row should navigate to its note, not clone it. Ctrl/Cmd still asks for a
+	 * new tab on purpose, and that request is honored.
+	 */
+	async showNote(f: TFile): Promise<WorkspaceLeaf> {
+		const open = this.openLeafFor(f.path);
+		if (open) {
+			await this.app.workspace.revealLeaf(open);
+			this.app.workspace.setActiveLeaf(open, { focus: true });
+			return open;
+		}
+		const leaf = this.app.workspace.getLeaf(false);
+		await leaf.openFile(f);
+		return leaf;
+	}
+
 	/** A ready-made base beside the folder's notes: the fixture, for real. */
 	async createStarterBase(folder: TFolder) {
 		const prefix = folder.path === "/" ? "" : folder.path + "/";
@@ -1890,7 +1947,8 @@ abstract class PBView extends BasesView {
 		el.addEventListener("keydown", (e) => {
 			if (e.key === "Enter" || e.key === " ") {
 				e.preventDefault();
-				void this.app.workspace.getLeaf(e.ctrlKey || e.metaKey).openFile(file);
+				if (e.ctrlKey || e.metaKey) void this.app.workspace.getLeaf(true).openFile(file);
+				else void this.plugin.showNote(file);
 			}
 		});
 	}
@@ -1915,8 +1973,11 @@ abstract class PBView extends BasesView {
 		this.rootEl.remove();
 	}
 
+	/** Ctrl/Cmd asks for a new tab and gets one. A plain open goes to the note
+	 *  wherever it already is, rather than making a second copy of it here. */
 	protected open(file: TFile, ev: MouseEvent) {
-		void this.app.workspace.getLeaf(ev.ctrlKey || ev.metaKey).openFile(file);
+		if (ev.ctrlKey || ev.metaKey) void this.app.workspace.getLeaf(true).openFile(file);
+		else void this.plugin.showNote(file);
 	}
 
 	/** The rendered text of a property for an entry ("" when absent). Missing
@@ -6247,7 +6308,17 @@ class PowerTableView extends PBView {
 						e.preventDefault();
 						e.stopPropagation();
 						if (/^https?:\/\//i.test(link)) window.open(link);
-						else void this.app.workspace.openLinkText(link, en.file.path);
+						else {
+							// openLinkText keeps parsing the #subpath itself; stepping to
+							// the tab the note is already in first is enough to stop a
+							// second copy, since an open with no new tab asked for lands
+							// in whichever tab is active.
+							void (async () => {
+								const dest = this.app.metadataCache.getFirstLinkpathDest(getLinkpath(link), en.file.path);
+								if (dest) await this.plugin.focusOpenTab(dest.path);
+								await this.app.workspace.openLinkText(link, en.file.path);
+							})();
+						}
 					});
 				}
 				this.registerEdit(td, () => this.beginFilePick(td, en, fmKey, raw, { images: false, multi: true }));
