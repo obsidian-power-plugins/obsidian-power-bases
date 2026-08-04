@@ -316,7 +316,7 @@ export function capturePrev(fm: Record<string, unknown>, keys: string[]): Record
 	const prev: Record<string, unknown> = {};
 	for (const k of keys) {
 		const v = fm[k];
-		prev[k] = Array.isArray(v) ? [...v] : v;
+		prev[k] = Array.isArray(v) ? [...(v as unknown[])] : v;
 	}
 	return prev;
 }
@@ -588,7 +588,7 @@ export function parseDateInput(s: string, style: "us" | "eu" = "us"): string | n
 		mm = m[5];
 		ap = m[6];
 	} else {
-		m = t.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})(?:\s+(\d{1,2}):(\d{2})\s*([ap]m)?)?$/i);
+		m = t.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})(?:\s+(\d{1,2}):(\d{2})\s*([ap]m)?)?$/i);
 		if (!m) return null;
 		const a = +m[1];
 		const b = +m[2];

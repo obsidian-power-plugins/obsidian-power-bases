@@ -1,4 +1,4 @@
-import { BasesView, Menu, Modal, Notice, NullValue, Plugin, PluginSettingTab, Setting, TFile, TFolder, getLinkpath, parseYaml, requestUrl, setIcon, stringifyYaml } from "obsidian";
+import { BasesView, ButtonComponent, Menu, Modal, Notice, NullValue, Plugin, PluginSettingTab, Setting, TFile, TFolder, getLinkpath, parseYaml, requestUrl, setIcon, stringifyYaml } from "obsidian";
 import type { App, BasesAllOptions, BasesEntry, BasesPropertyId, BasesViewConfig, Editor, QueryController, SettingDefinitionItem, SettingDefinitionPage, SettingDefinitionRender, WorkspaceLeaf } from "obsidian";
 import {
 	AggOp,
@@ -12,7 +12,6 @@ import {
 	donutSegments,
 	groupAggregate,
 	matchesQuery,
-	niceCeil,
 	starterBaseYaml,
 	blankBaseYaml,
 	timeMinutes,
@@ -28,7 +27,6 @@ import {
 	formatNum,
 	inferKind,
 	linkTargets,
-	listToText,
 	monthGrid,
 	monthSpans,
 	orderByRank,
@@ -75,7 +73,6 @@ import {
 	starCount,
 	formatPercent,
 	trafficState,
-	currencySymbol,
 	CURRENCIES,
 	DateFormat,
 	DatePreset,
@@ -158,6 +155,43 @@ function parseJson<T>(raw: unknown): T | null {
 		}
 	}
 	return null;
+}
+
+/** A note's frontmatter, with `unknown` fields rather than `any` ones.
+ *
+ *  Obsidian types `CachedMetadata.frontmatter` as `any`, so every value read
+ *  through it arrives untyped and quietly switches off checking for whatever it
+ *  touches next. Reading it here, once, is what keeps that from spreading: the
+ *  callers get `unknown` and have to say what they expect. */
+function frontmatterOf(app: App, file: TFile): Record<string, unknown> | undefined {
+	const fm: unknown = app.metadataCache.getFileCache(file)?.frontmatter;
+	return fm as Record<string, unknown> | undefined;
+}
+
+/** Paint a button as destructive.
+ *
+ *  `setDestructive` arrived in 1.13 and this plugin's floor is 1.10.2, where
+ *  calling it would throw, so the old `setWarning` has to stay reachable. The
+ *  cast is the runtime check: the inline type carries no deprecation, which is
+ *  also what keeps the fallback from being reported as one. */
+function markDestructive(b: ButtonComponent): ButtonComponent {
+	const btn = b as unknown as { setDestructive?: () => void; setWarning: () => void };
+	if (btn.setDestructive) btn.setDestructive();
+	else btn.setWarning();
+	return b;
+}
+
+/** Attach a listener whose work is async.
+ *
+ *  addEventListener wants a void return and drops whatever it is handed, so an
+ *  `async` listener's rejection goes nowhere: the button appears to do nothing
+ *  and the reason is lost. Await inside, and say so when it fails. */
+function onEventAsync(el: HTMLElement, event: string, run: () => Promise<void>) {
+	el.addEventListener(event, () => {
+		void run().catch((e: unknown) => {
+			new Notice("Power Bases: " + (e instanceof Error ? e.message : String(e)), 8000);
+		});
+	});
 }
 
 /** Whether a rendered cell value passes a per-column filter condition. */
@@ -673,7 +707,7 @@ class PowerBasesSettingTab extends PluginSettingTab {
 			const q = this.query.trim().toLowerCase();
 			setVisible(tabBar, !q);
 			for (const sec of Array.from(body.children) as HTMLElement[]) {
-				const items = Array.from(sec.querySelectorAll(":scope > .setting-item:not(.setting-item-heading)")) as HTMLElement[];
+				const items = Array.from(sec.querySelectorAll<HTMLElement>(":scope > .setting-item:not(.setting-item-heading)"));
 				if (!q) {
 					for (const it of items) setVisible(it, true);
 					setVisible(sec, sec.dataset.tab === this.activeTab);
@@ -826,9 +860,8 @@ class PowerBasesSettingTab extends PluginSettingTab {
 							const clear = new Setting(host).setName("Clear all value colors");
 							this.addHelp(clear, "Forget every hand-picked value color across the whole vault; values fall back to their automatic hashed hues. Cannot be undone.");
 							clear.addButton((b) =>
-								b
+								markDestructive(b)
 									.setButtonText("Clear all")
-									.setWarning()
 									.onClick(() => {
 										s.valueColors = {};
 										save();
@@ -1111,7 +1144,8 @@ export default class PowerBasesPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		const next = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const saved = (await this.loadData()) as Partial<PowerBasesSettings> | null;
+		const next: PowerBasesSettings = Object.assign({}, DEFAULT_SETTINGS, saved);
 		// merged in place, never swapped: the settings tab captures this object
 		// once (`const s = plugin.settings`) and writes through that reference,
 		// so adopting a synced write must not strand it on an orphan. The field
@@ -1203,7 +1237,7 @@ export default class PowerBasesPlugin extends Plugin {
 						key: "pbAggOp",
 						displayName: "Lane totals aggregate",
 						default: "sum",
-						options: { sum: "Sum", avg: "Average", min: "Min", max: "Max", filled: "Filled" } as Record<string, string>,
+						options: { sum: "Sum", avg: "Average", min: "Min", max: "Max", filled: "Filled" },
 					},
 					{
 						type: "dropdown",
@@ -1398,7 +1432,7 @@ export default class PowerBasesPlugin extends Plugin {
 						key: "chartAgg",
 						displayName: "Measure",
 						default: "count",
-						options: { count: "Count", sum: "Sum", avg: "Average", min: "Min", max: "Max" } as Record<string, string>,
+						options: { count: "Count", sum: "Sum", avg: "Average", min: "Min", max: "Max" },
 					},
 					{
 						type: "property",
@@ -1437,7 +1471,7 @@ export default class PowerBasesPlugin extends Plugin {
 
 		this.addCommand({
 			id: "undo-last-change", icon: "undo-2",
-			name: "Undo last Power Bases change",
+			name: "Undo last change",
 			callback: () => void this.undoLast(),
 		});
 		this.addCommand({
@@ -1572,12 +1606,11 @@ export default class PowerBasesPlugin extends Plugin {
 	private journal: { label: string; changes: { path: string; prev: Record<string, unknown> }[] }[] = [];
 
 	private undoToast(label: string) {
-		const frag = document.createDocumentFragment();
-		frag.appendChild(document.createTextNode(label + "  "));
-		const btn = document.createElement("a");
-		btn.textContent = "Undo";
-		btn.className = "pb-undo-link";
-		frag.appendChild(btn);
+		let btn!: HTMLAnchorElement;
+		const frag = createFragment((f) => {
+			f.appendText(label + "  ");
+			btn = f.createEl("a", { cls: "pb-undo-link", text: "Undo" });
+		});
 		const notice = new Notice(frag, 6000);
 		btn.addEventListener("click", () => {
 			notice.hide();
@@ -1832,7 +1865,7 @@ abstract class PBView extends BasesView {
 	/** When this view lives inside a note's embed: the host note and the
 	 *  embed's exact link text (for removing the line on delete). */
 	embedInfo(): { host: TFile; src: string } | null {
-		const src = this.rootEl.closest(".internal-embed")?.getAttribute("src");
+		const src = this.rootEl.closest<HTMLElement>(".internal-embed")?.getAttribute("src");
 		const host = this.app.workspace.getActiveFile();
 		return src && host && host.extension === "md" ? { host, src } : null;
 	}
@@ -1842,7 +1875,7 @@ abstract class PBView extends BasesView {
 		if (probe instanceof TFile && probe.extension === "base") return probe;
 		const active = this.app.workspace.getActiveFile();
 		if (active && active.extension === "base") return active;
-		const src = this.rootEl.closest(".internal-embed")?.getAttribute("src");
+		const src = this.rootEl.closest<HTMLElement>(".internal-embed")?.getAttribute("src");
 		if (src) {
 			const f = this.app.metadataCache.getFirstLinkpathDest(src.split("#")[0].trim(), active?.path ?? "");
 			if (f instanceof TFile && f.extension === "base") return f;
@@ -2357,7 +2390,7 @@ class PowerBoardView extends PBView {
 	/* ----- drops, ranks, menus ----- */
 
 	private rawRank(en: BasesEntry, rankKey: string): number | null {
-		const r = this.app.metadataCache.getFileCache(en.file)?.frontmatter?.[rankKey];
+		const r = frontmatterOf(this.app, en.file)?.[rankKey];
 		return typeof r === "number" ? r : null;
 	}
 
@@ -2480,7 +2513,7 @@ class PowerBoardView extends PBView {
 				hoverLane = null;
 				const el = document.elementFromPoint(x, y) as HTMLElement | null;
 				if (!el?.closest) return;
-				const laneEl = el.closest(".pb-lane") as HTMLElement | null;
+				const laneEl = el.closest<HTMLElement>(".pb-lane");
 				if (!laneEl || !this.rootEl.contains(laneEl)) return;
 				const laneKey = laneEl.getAttribute("data-noval") === "1" ? null : laneEl.getAttribute("data-lane");
 				// swim cells carry a row; flat lanes leave the row untouched
@@ -2495,7 +2528,7 @@ class PowerBoardView extends PBView {
 					target = { lane: laneKey, row: rowKey, before: null }; // folded lanes take appends
 					return;
 				}
-				const overCard = el.closest(".pb-card") as HTMLElement | null;
+				const overCard = el.closest<HTMLElement>(".pb-card");
 				const show = (rect: DOMRect, atTop: boolean) => {
 					if (!line) return;
 					line.addClass("is-shown");
@@ -2974,7 +3007,7 @@ class CsvImportModal extends Modal {
 			headers.forEach((key, i) => {
 				if (i === titleIdx || !fieldTypes[i]) return;
 				const cur = this.plugin.settings.fields[key];
-				this.plugin.settings.fields[key] = cur ? { ...cur, type: fieldTypes[i]! } : { type: fieldTypes[i]! };
+				this.plugin.settings.fields[key] = cur ? { ...cur, type: fieldTypes[i] } : { type: fieldTypes[i] };
 				typed = true;
 			});
 			if (typed) await this.plugin.persistSettings();
@@ -3121,8 +3154,8 @@ class TemplateModal extends Modal {
 			const card = list.createDiv({ cls: "pb-tpl-card" });
 			setIcon(card.createSpan({ cls: "pb-tpl-ic" }), tpl.icon);
 			const body = card.createDiv({ cls: "pb-tpl-body" });
-			body.createEl("div", { cls: "pb-tpl-name", text: tpl.name });
-			body.createEl("div", { cls: "pb-tpl-desc", text: tpl.desc });
+			body.createDiv({ cls: "pb-tpl-name", text: tpl.name });
+			body.createDiv({ cls: "pb-tpl-desc", text: tpl.desc });
 			card.setAttribute("tabindex", "0");
 			card.addEventListener("click", () => void this.generate(tpl));
 			card.addEventListener("keydown", (e) => {
@@ -3165,7 +3198,7 @@ class TemplateModal extends Modal {
 /** The base config's parsed YAML (formulas live at the top level, not in view
  *  config, so these round-trip the whole .base file). */
 async function readBaseConfig(app: App, file: TFile): Promise<Record<string, unknown>> {
-	const parsed = parseYaml(await app.vault.read(file));
+	const parsed: unknown = parseYaml(await app.vault.read(file));
 	return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
 }
 
@@ -3174,7 +3207,7 @@ async function readBaseConfig(app: App, file: TFile): Promise<Record<string, unk
  *  its own order) is folded in rather than overwritten. */
 async function updateBaseConfig(app: App, file: TFile, change: (cfg: Record<string, unknown>) => void): Promise<void> {
 	await app.vault.process(file, (data) => {
-		const parsed = parseYaml(data);
+		const parsed: unknown = parseYaml(data);
 		const cfg = parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
 		change(cfg);
 		return stringifyYaml(cfg);
@@ -3388,7 +3421,7 @@ class FormulaModal extends Modal {
 
 	private currentRow(): { fm: Record<string, unknown>; en: BasesEntry | undefined } {
 		const en = this.entries[Number(this.rowSelect.value) || 0];
-		return { fm: en ? this.app.metadataCache.getFileCache(en.file)?.frontmatter ?? {} : {}, en };
+		return { fm: en ? frontmatterOf(this.app, en.file) ?? {} : {}, en };
 	}
 
 	private updatePreview() {
@@ -3697,13 +3730,13 @@ class NumberFormatModal extends Modal {
 
 		const btns = c.createDiv({ cls: "pb-modal-btns" });
 		const rm = btns.createEl("button", { cls: "pb-fn-del", text: "Remove" });
-		rm.addEventListener("click", async () => {
+		onEventAsync(rm, "click", async () => {
 			await this.plugin.applyNumberFormat([this.propId, ...getApplyTo()], null);
 			this.close();
 		});
 		btns.createEl("button", { text: "Cancel" }).addEventListener("click", () => this.close());
 		const save = btns.createEl("button", { text: "Save", cls: "mod-cta" });
-		save.addEventListener("click", async () => {
+		onEventAsync(save, "click", async () => {
 			await this.plugin.applyNumberFormat([this.propId, ...getApplyTo()], this.fmt);
 			this.close();
 		});
@@ -3803,13 +3836,13 @@ class DateFormatModal extends Modal {
 
 		const btns = c.createDiv({ cls: "pb-modal-btns" });
 		const rm = btns.createEl("button", { cls: "pb-fn-del", text: "Remove" });
-		rm.addEventListener("click", async () => {
+		onEventAsync(rm, "click", async () => {
 			await this.plugin.applyDateFormat([this.propId, ...getApplyTo()], null);
 			this.close();
 		});
 		btns.createEl("button", { text: "Cancel" }).addEventListener("click", () => this.close());
 		const save = btns.createEl("button", { text: "Save", cls: "mod-cta" });
-		save.addEventListener("click", async () => {
+		onEventAsync(save, "click", async () => {
 			await this.plugin.applyDateFormat([this.propId, ...getApplyTo()], this.fmt);
 			this.close();
 		});
@@ -3876,13 +3909,13 @@ class PhoneFormatModal extends Modal {
 
 		const btns = c.createDiv({ cls: "pb-modal-btns" });
 		const rm = btns.createEl("button", { cls: "pb-fn-del", text: "Remove" });
-		rm.addEventListener("click", async () => {
+		onEventAsync(rm, "click", async () => {
 			await this.plugin.applyPhoneFormat([this.propId, ...getApplyTo()], null);
 			this.close();
 		});
 		btns.createEl("button", { text: "Cancel" }).addEventListener("click", () => this.close());
 		const save = btns.createEl("button", { text: "Save", cls: "mod-cta" });
-		save.addEventListener("click", async () => {
+		onEventAsync(save, "click", async () => {
 			await this.plugin.applyPhoneFormat([this.propId, ...getApplyTo()], this.fmt);
 			this.close();
 		});
@@ -4232,7 +4265,7 @@ class PowerCalendarView extends PBView {
 				const key = this.dayKeyAt(x, y);
 				this.clearDayHighlight();
 				if (key && key !== fromKey) {
-					const raw = this.app.metadataCache.getFileCache(en.file)?.frontmatter?.[fmKey];
+					const raw = frontmatterOf(this.app, en.file)?.[fmKey];
 					const next = typeof raw === "string" ? replaceDateKey(raw, key) : key;
 					void this.plugin.writeBatch(`Rescheduled "${en.file.basename}" to ${key}`, [
 						{ file: en.file, assignments: { [fmKey]: next } },
@@ -4441,10 +4474,10 @@ class PowerTableView extends PBView {
 		// since an omitted-vs-hidden order looks the same)
 		const hideName = this.config.get("pbHideName") === true;
 		const cols: BasesPropertyId[] = hideName
-			? (order.filter((p) => p !== "file.name") as BasesPropertyId[])
-			: order.includes("file.name" as BasesPropertyId)
+			? order.filter((p) => p !== "file.name")
+			: order.includes("file.name")
 				? order
-				: ["file.name" as BasesPropertyId, ...order];
+				: ["file.name", ...order];
 		this.lastCols = cols;
 		let entries = this.applyColumnFilters(this.filtered(this.data.data));
 		const sortCfg = this.sortConfig();
@@ -4466,7 +4499,7 @@ class PowerTableView extends PBView {
 		fxBtn.createSpan({ text: "Formula" });
 		fxBtn.addEventListener("click", () => this.openFormulaModal());
 		head.createSpan({ cls: "pb-view-count", text: `${entries.length}` });
-		if (this.rootEl.closest(".internal-embed")) {
+		if (this.rootEl.closest<HTMLElement>(".internal-embed")) {
 			this.decorateEmbed();
 			window.setTimeout(() => this.decorateEmbed(), 0); // catch a late native toolbar
 		}
@@ -4523,7 +4556,7 @@ class PowerTableView extends PBView {
 			if (r.dir !== "to") continue;
 			const map = new Map<string, TFile[]>();
 			for (const mf of this.app.vault.getMarkdownFiles()) {
-				const raw = this.app.metadataCache.getFileCache(mf)?.frontmatter?.[r.linkKey];
+				const raw = frontmatterOf(this.app, mf)?.[r.linkKey];
 				if (raw == null) continue;
 				for (const nm of linkTargets(raw)) {
 					const dest = this.app.metadataCache.getFirstLinkpathDest(nm, mf.path);
@@ -4627,7 +4660,7 @@ class PowerTableView extends PBView {
 		const tbody = table.createEl("tbody");
 
 		const rawOf = (en: BasesEntry, fmKey: string): unknown =>
-			this.app.metadataCache.getFileCache(en.file)?.frontmatter?.[fmKey];
+			frontmatterOf(this.app, en.file)?.[fmKey];
 
 		const renderRow = (en: BasesEntry) => {
 			const tr = tbody.createEl("tr", { cls: "pb-tr", attr: { "data-path": en.file.path } });
@@ -4683,7 +4716,7 @@ class PowerTableView extends PBView {
 							const arr = Array.isArray(raw) ? raw.map((v) => String(v)) : raw == null || raw === "" ? [] : [String(raw)];
 							for (const it of arr) {
 								if (!it.trim() || it === "null") continue;
-								td.createSpan({ cls: "pb-person", text: it }).style.setProperty("--pb-c", this.plugin.hueFor(fmKey!, it));
+								td.createSpan({ cls: "pb-person", text: it }).style.setProperty("--pb-c", this.plugin.hueFor(fmKey, it));
 							}
 						} else {
 							td.setText(this.display(en, p, s));
@@ -4722,14 +4755,14 @@ class PowerTableView extends PBView {
 					files = reverseMaps.get(i)?.get(en.file.path) ?? [];
 				} else {
 					files = [];
-					const raw = this.app.metadataCache.getFileCache(en.file)?.frontmatter?.[r.linkKey];
+					const raw = frontmatterOf(this.app, en.file)?.[r.linkKey];
 					for (const nm of linkTargets(raw)) {
 						const lf = this.app.metadataCache.getFirstLinkpathDest(nm, en.file.path);
 						if (lf) files.push(lf);
 					}
 				}
 				const values = r.targetKey
-					? files.map((lf) => this.app.metadataCache.getFileCache(lf)?.frontmatter?.[r.targetKey])
+					? files.map((lf) => frontmatterOf(this.app, lf)?.[r.targetKey])
 					: [];
 				td.setText(rollup(r.op, files.length, values));
 			}
@@ -4787,7 +4820,7 @@ class PowerTableView extends PBView {
 					td.createSpan({ text: " " + this.aggDisplay(p, n) });
 				}
 			}
-			for (const _r of rollups) tr.createEl("td", { cls: "pb-td pb-agg" });
+			for (let i = 0; i < rollups.length; i++) tr.createEl("td", { cls: "pb-td pb-agg" });
 		};
 
 		const groups = this.data.groupedData.map((g) => {
@@ -4846,7 +4879,7 @@ class PowerTableView extends PBView {
 					td.createSpan({ text: " " + this.aggDisplay(p, n) });
 				}
 			}
-			for (const _r of rollups) fr.createEl("td", { cls: "pb-td pb-agg" });
+			for (let i = 0; i < rollups.length; i++) fr.createEl("td", { cls: "pb-td pb-agg" });
 		}
 
 		this.updateSelUi();
@@ -4873,7 +4906,7 @@ class PowerTableView extends PBView {
 	private notePropKeys(): string[] {
 		const set = new Set<string>();
 		for (const en of this.data.data.slice(0, 300)) {
-			const fm = this.app.metadataCache.getFileCache(en.file)?.frontmatter;
+			const fm = frontmatterOf(this.app, en.file);
 			if (fm) for (const k of Object.keys(fm)) set.add(k);
 		}
 		return [...set].sort();
@@ -5413,7 +5446,7 @@ class PowerTableView extends PBView {
 		const newId = "note." + newName;
 		const writes: { file: TFile; assignments: Record<string, unknown> }[] = [];
 		for (const en of this.data.data) {
-			const fm = this.app.metadataCache.getFileCache(en.file)?.frontmatter;
+			const fm = frontmatterOf(this.app, en.file);
 			if (fm && fm[key] != null) writes.push({ file: en.file, assignments: { [newName]: fm[key] } });
 		}
 		const mtm = (this.app as unknown as { metadataTypeManager?: { getAssignedType?: (n: string) => string | null } }).metadataTypeManager;
@@ -5445,7 +5478,7 @@ class PowerTableView extends PBView {
 	private uniquePropName(base: string): string {
 		const keys = new Set<string>();
 		for (const en of this.data.data.slice(0, 300)) {
-			const fm = this.app.metadataCache.getFileCache(en.file)?.frontmatter;
+			const fm = frontmatterOf(this.app, en.file);
 			if (fm) for (const k of Object.keys(fm)) keys.add(k);
 		}
 		let name = base;
@@ -5488,7 +5521,7 @@ class PowerTableView extends PBView {
 		if (!isFormula) {
 			const writes: { file: TFile; assignments: Record<string, unknown> }[] = [];
 			for (const en of this.data.data) {
-				const fm = this.app.metadataCache.getFileCache(en.file)?.frontmatter;
+				const fm = frontmatterOf(this.app, en.file);
 				if (fm && oldName in fm) writes.push({ file: en.file, assignments: { [newName]: fm[oldName], [oldName]: undefined } });
 			}
 			if (writes.length) await this.plugin.writeBatch(`Renamed "${oldName}" to "${newName}"`, writes);
@@ -5652,7 +5685,7 @@ class PowerTableView extends PBView {
 		const key = frontmatterKey(p);
 		const writes: { file: TFile; assignments: Record<string, unknown> }[] = [];
 		for (const en of this.data.data) {
-			const fm = this.app.metadataCache.getFileCache(en.file)?.frontmatter;
+			const fm = frontmatterOf(this.app, en.file);
 			if (fm && key in fm) writes.push({ file: en.file, assignments: { [key]: undefined } });
 		}
 		if (writes.length) await this.plugin.writeBatch(`Deleted "${key}" from ${writes.length} note${writes.length === 1 ? "" : "s"}`, writes);
@@ -5663,7 +5696,7 @@ class PowerTableView extends PBView {
 	private countWithProp(key: string): number {
 		let n = 0;
 		for (const en of this.data.data) {
-			const fm = this.app.metadataCache.getFileCache(en.file)?.frontmatter;
+			const fm = frontmatterOf(this.app, en.file);
 			if (fm && key in fm) n++;
 		}
 		return n;
@@ -5755,7 +5788,7 @@ class PowerTableView extends PBView {
 		if (bf) {
 			try {
 				const cfg = await readBaseConfig(this.app, bf);
-				const scoped = scopeFolder((cfg as Record<string, unknown>).filters);
+				const scoped = scopeFolder(cfg.filters);
 				if (scoped) {
 					await this.plugin.ensureFolder(scoped);
 					const af = this.app.vault.getAbstractFileByPath(scoped);
@@ -5794,7 +5827,7 @@ class PowerTableView extends PBView {
 	/* ----- manual row order, export, fill-down, grid paste ----- */
 
 	private rawRankOf(en: BasesEntry, rankKey: string): number | null {
-		const v = this.app.metadataCache.getFileCache(en.file)?.frontmatter?.[rankKey];
+		const v = frontmatterOf(this.app, en.file)?.[rankKey];
 		return typeof v === "number" ? v : null;
 	}
 
@@ -5855,7 +5888,13 @@ class PowerTableView extends PBView {
 	 *  raw YAML is not the point of an embed). Re-run each paint since Bases
 	 *  owns and may repaint that toolbar; guarded so it never doubles up. */
 	private decorateEmbed() {
-		const embed = this.rootEl.closest(".internal-embed") as HTMLElement | null;
+		// Mark whichever container this base is drawn in, so the frame around it
+		// is a plain class. Reaching it with :has() instead means the browser
+		// re-matches a parent whenever its descendants change, which is the cost
+		// the directory flags.
+		this.rootEl.closest<HTMLElement>(".internal-embed, .block-language-base")?.addClass("pb-base-host");
+
+		const embed = this.rootEl.closest<HTMLElement>(".internal-embed");
 		if (!embed) return;
 		embed.addClass("pb-embed-host");
 		if (!embed.querySelector(":scope > .pb-embed-del")) {
@@ -5867,7 +5906,7 @@ class PowerTableView extends PBView {
 		// lives in the toolbar (outside our own view root)
 		embed.querySelectorAll("svg[class*='lucide-code']").forEach((svg) => {
 			if (svg.closest(".pb-root")) return;
-			const btn = (svg.closest("button, [role='button'], .clickable-icon") ?? svg.parentElement) as HTMLElement | null;
+			const btn = svg.closest<HTMLElement>("button, [role='button'], .clickable-icon") ?? svg.parentElement;
 			btn?.classList.add("pb-native-hidden");
 		});
 	}
@@ -5974,7 +6013,7 @@ class PowerTableView extends PBView {
 		if (ri <= 0) return null;
 		const f = this.app.vault.getAbstractFileByPath(rows[ri - 1].getAttribute("data-path") ?? "");
 		if (!(f instanceof TFile)) return null;
-		const v = this.app.metadataCache.getFileCache(f)?.frontmatter?.[fmKey];
+		const v = frontmatterOf(this.app, f)?.[fmKey];
 		if (v == null) return "";
 		return Array.isArray(v) ? v.map(String).join(", ") : String(v);
 	}
@@ -6000,7 +6039,7 @@ class PowerTableView extends PBView {
 			const p = cols[ci + j];
 			if (p && String(p).startsWith("note.")) {
 				const key = frontmatterKey(p);
-				colTargets.push({ key, kind: (this.plugin.storedKind(key) ?? this.plugin.assignedKind(key) ?? "text") as CellKind });
+				colTargets.push({ key, kind: this.plugin.storedKind(key) ?? this.plugin.assignedKind(key) ?? "text" });
 			} else colTargets.push(null);
 		}
 		if (!colTargets.some(Boolean)) {
@@ -6275,7 +6314,7 @@ class PowerTableView extends PBView {
 			case "verification": {
 				const cfg = this.plugin.fieldConfig(fmKey);
 				const expRaw = cfg?.verifyExpiryProp
-					? this.app.metadataCache.getFileCache(en.file)?.frontmatter?.[cfg.verifyExpiryProp]
+					? frontmatterOf(this.app, en.file)?.[cfg.verifyExpiryProp]
 					: null;
 				const state = verifyState(raw, expRaw != null ? String(expRaw) : null, todayKey());
 				const badge = td.createSpan({ cls: `pb-verify pb-verify-${state}` });
@@ -6353,7 +6392,7 @@ class PowerTableView extends PBView {
 		const prefix = this.plugin.fieldConfig(fmKey)?.prefix ?? "";
 		const existing: string[] = [];
 		for (const e of this.data.data) {
-			const v = this.app.metadataCache.getFileCache(e.file)?.frontmatter?.[fmKey];
+			const v = frontmatterOf(this.app, e.file)?.[fmKey];
 			if (v != null && String(v).trim() !== "") existing.push(String(v));
 		}
 		const id = nextId(existing, prefix);
@@ -6379,7 +6418,7 @@ class PowerTableView extends PBView {
 		if (cfg.buttonLink?.trim()) {
 			let url = cfg.buttonLink.trim();
 			if (url.startsWith("note.")) {
-				const v = this.app.metadataCache.getFileCache(en.file)?.frontmatter?.[url.slice(5)];
+				const v = frontmatterOf(this.app, en.file)?.[url.slice(5)];
 				url = v != null ? String(v) : "";
 			}
 			const href = externalHref(url);
@@ -6643,7 +6682,7 @@ class PowerTableView extends PBView {
 		if (this.editing) return;
 		this.editing = true;
 		td.addClass("pb-editing");
-		const fmLive = this.app.metadataCache.getFileCache(en.file)?.frontmatter;
+		const fmLive = frontmatterOf(this.app, en.file);
 		if (fmLive) raw = fmLive[fmKey];
 		const start = raw == null ? "" : String(raw);
 		const cur = parseLinkValue(start);
@@ -6786,7 +6825,7 @@ class PowerTableView extends PBView {
 		if (this.editing) return;
 		this.editing = true;
 		td.addClass("pb-editing");
-		const fmLive = this.app.metadataCache.getFileCache(en.file)?.frontmatter;
+		const fmLive = frontmatterOf(this.app, en.file);
 		if (fmLive) raw = fmLive[fmKey];
 		const start = Array.isArray(raw) ? raw.map(String) : raw == null || raw === "" ? [] : [String(raw)];
 		let items = [...start];
@@ -6915,7 +6954,7 @@ class PowerTableView extends PBView {
 		if (opts.images) fileIn.accept = "image/*";
 		if (opts.multi) fileIn.multiple = true;
 		btns.createEl("button", { text: opts.images ? "Upload image" : "Upload files" }).addEventListener("click", () => fileIn.click());
-		fileIn.addEventListener("change", async () => {
+		onEventAsync(fileIn, "change", async () => {
 			const files = Array.from(fileIn.files ?? []);
 			if (!files.length) return;
 			const links: string[] = [];
@@ -6957,7 +6996,7 @@ class PowerTableView extends PBView {
 	private distinctListValues(fmKey: string): string[] {
 		const set = new Set<string>();
 		for (const en of this.data.data) {
-			const raw = this.app.metadataCache.getFileCache(en.file)?.frontmatter?.[fmKey];
+			const raw = frontmatterOf(this.app, en.file)?.[fmKey];
 			const arr = Array.isArray(raw) ? raw : raw == null || raw === "" ? [] : [raw];
 			for (const v of arr) {
 				const s = String(v).trim();
@@ -6974,7 +7013,7 @@ class PowerTableView extends PBView {
 		if (!newV || newV === oldV) return;
 		const writes: { file: TFile; assignments: Record<string, unknown> }[] = [];
 		for (const en of this.data.data) {
-			const raw = this.app.metadataCache.getFileCache(en.file)?.frontmatter?.[fmKey];
+			const raw = frontmatterOf(this.app, en.file)?.[fmKey];
 			const arr = Array.isArray(raw) ? raw.map((v) => String(v)) : raw == null || raw === "" ? [] : [String(raw)];
 			if (arr.includes(oldV)) writes.push({ file: en.file, assignments: { [fmKey]: [...new Set(arr.map((x) => (x === oldV ? newV : x)))] } });
 		}
@@ -6986,7 +7025,7 @@ class PowerTableView extends PBView {
 	private async deleteListOptionAcrossRows(fmKey: string, v: string) {
 		const writes: { file: TFile; assignments: Record<string, unknown> }[] = [];
 		for (const en of this.data.data) {
-			const raw = this.app.metadataCache.getFileCache(en.file)?.frontmatter?.[fmKey];
+			const raw = frontmatterOf(this.app, en.file)?.[fmKey];
 			const arr = Array.isArray(raw) ? raw.map((x) => String(x)) : raw == null || raw === "" ? [] : [String(raw)];
 			if (arr.includes(v)) {
 				const next = arr.filter((x) => x !== v);
@@ -7112,7 +7151,7 @@ class PowerTableView extends PBView {
 		if (this.editing) return;
 		// the closure's raw can lag after keyboard navigation (repaints are
 		// deferred while an editor is open); the metadata cache is authoritative
-		const fmLive = this.app.metadataCache.getFileCache(en.file)?.frontmatter;
+		const fmLive = frontmatterOf(this.app, en.file);
 		if (fmLive) raw = fmLive[fmKey];
 		if (kind === "date" || kind === "datetime") {
 			this.beginDateEdit(td, en, fmKey, kind, raw);
@@ -7138,7 +7177,7 @@ class PowerTableView extends PBView {
 			// frontmatter and skip "null" so an absent value never becomes an option)
 			const seen = new Set<string>();
 			for (const other of this.data.data) {
-				const rawV = this.app.metadataCache.getFileCache(other.file)?.frontmatter?.[fmKey];
+				const rawV = frontmatterOf(this.app, other.file)?.[fmKey];
 				const s = rawV == null ? "" : String(rawV).trim();
 				if (s && s !== "null") seen.add(s);
 				if (seen.size >= 40) break;
@@ -7249,7 +7288,7 @@ class PowerTimelineView extends PBView {
 			return;
 		}
 		const root = this.rootEl;
-		const prevScroll = (root.querySelector(".pb-tl-scroll") as HTMLElement | null)?.scrollLeft ?? null;
+		const prevScroll = root.querySelector<HTMLElement>(".pb-tl-scroll")?.scrollLeft ?? null;
 		root.empty();
 		root.className = "pb-root pb-tl";
 		const startProp = this.config.getAsPropertyId("startProp");
@@ -7394,7 +7433,7 @@ class PowerTimelineView extends PBView {
 							return;
 						}
 						this.writing = true;
-						const raw = this.app.metadataCache.getFileCache(en.file)?.frontmatter?.[startKeyName];
+						const raw = frontmatterOf(this.app, en.file)?.[startKeyName];
 						const next = typeof raw === "string" && dateKeyOf(raw) ? replaceDateKey(raw, key) : key;
 						void this.plugin
 							.writeBatch(`Scheduled "${en.file.basename}" for ${key}`, [
@@ -7451,7 +7490,7 @@ class PowerTimelineView extends PBView {
 			bar.style.left = off * ppd + "px";
 			bar.style.width = Math.max(8, (endOff - off + 1) * ppd - 2) + "px";
 			if (progressProp) {
-				const pct = progressPct(this.app.metadataCache.getFileCache(it.en.file)?.frontmatter?.[frontmatterKey(progressProp)]);
+				const pct = progressPct(frontmatterOf(this.app, it.en.file)?.[frontmatterKey(progressProp)]);
 				if (pct != null) {
 					const fill = bar.createDiv({ cls: "pb-tl-fill" });
 					fill.style.width = pct + "%";
@@ -7490,7 +7529,7 @@ class PowerTimelineView extends PBView {
 		byPath: Map<string, { en: BasesEntry; start: string; end: string }>,
 		depKey: string
 	) {
-		requestAnimationFrame(() => {
+		window.requestAnimationFrame(() => {
 			if (!inner.isConnected) return;
 			const NS = "http://www.w3.org/2000/svg";
 			const svg = document.createElementNS(NS, "svg");
@@ -7526,7 +7565,7 @@ class PowerTimelineView extends PBView {
 			for (const [path, el] of barEls) {
 				const it = byPath.get(path);
 				if (!it) continue;
-				const raw = this.app.metadataCache.getFileCache(it.en.file)?.frontmatter?.[depKey];
+				const raw = frontmatterOf(this.app, it.en.file)?.[depKey];
 				const t = loc(el);
 				for (const nm of linkTargets(raw)) {
 					const pred = this.app.metadataCache.getFirstLinkpathDest(nm, it.en.file.path);
@@ -7623,7 +7662,7 @@ class PowerTimelineView extends PBView {
 		}
 		this.writing = true;
 		try {
-			const cache = this.app.metadataCache.getFileCache(it.en.file)?.frontmatter ?? {};
+			const cache = frontmatterOf(this.app, it.en.file) ?? {};
 			const assignments: Record<string, unknown> = {};
 			if (newStart !== it.start) {
 				const rawS = cache[startKeyName];
@@ -7697,17 +7736,13 @@ class PowerChartView extends PBView {
 	}
 
 	private svg(parent: HTMLElement, w: number, h: number): SVGSVGElement {
-		const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-		s.setAttribute("viewBox", `0 0 ${w} ${h}`);
-		s.addClass("pb-chart-svg");
+		const s = createSvg("svg", { cls: "pb-chart-svg", attr: { viewBox: `0 0 ${w} ${h}` } });
 		parent.appendChild(s);
 		return s;
 	}
 
-	private el(tag: string, attrs: Record<string, string>): SVGElement {
-		const e = document.createElementNS("http://www.w3.org/2000/svg", tag);
-		for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
-		return e;
+	private el(tag: keyof SVGElementTagNameMap, attrs: Record<string, string>): SVGElement {
+		return createSvg(tag, { attr: attrs });
 	}
 
 	private renderAxisChart(
@@ -7873,8 +7908,8 @@ class PowerGalleryView extends PBView {
 			return f ? this.app.vault.getResourcePath(f) : null;
 		};
 		if (imageProp) {
-			const raw = this.app.metadataCache.getFileCache(en.file)?.frontmatter?.[frontmatterKey(imageProp)];
-			const first = Array.isArray(raw) ? raw[0] : raw;
+			const raw = frontmatterOf(this.app, en.file)?.[frontmatterKey(imageProp)];
+			const first: unknown = Array.isArray(raw) ? (raw as unknown[])[0] : raw;
 			if (typeof first === "string" && first.trim()) {
 				const m = first.match(/^\[\[([^\]|]+)/);
 				const target = (m ? m[1] : first).split("#")[0].trim();

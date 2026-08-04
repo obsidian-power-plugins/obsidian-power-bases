@@ -523,14 +523,16 @@ button.pb-embed-del svg {
 /* the native code (source) toggle, hidden inside our embeds only. Kept in
    layout (visibility, not display) so the toolbar does not reflow and the
    delete button floats cleanly into the freed top-right slot. */
-.pb-embed-host .pb-native-hidden {
-	visibility: hidden !important;
+/* the class is repeated to outweigh Obsidian's own rule for the button on
+   specificity alone, with no override flag */
+.pb-embed-host .pb-native-hidden.pb-native-hidden {
+	visibility: hidden;
 }
 
 /* a base inside a note reads as one contained block: a faint frame around
-   the whole embed, native toolbar included */
-.internal-embed:has(.pb-root),
-.block-language-base:has(.pb-root) {
+   the whole embed, native toolbar included. The host carries the class from
+   decorateEmbed(), so no parent-matching selector is needed here. */
+.pb-base-host {
 	display: block;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 8px;
