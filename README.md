@@ -2,9 +2,9 @@
 
 Six extra views for Obsidian's core **Bases** plugin: a kanban **board**, a month/week **calendar**, a Gantt-style **timeline**, a **chart** (bar/line/donut), an image **gallery**, and an enhanced **table** with summaries, colors, and rollups. Rows stay ordinary notes, the data model stays Obsidian's own, and everything syncs and works on mobile because Bases does. Built to stay fast in huge vaults: views render in chunks, so cost scales with what is on screen, never with vault size. 20,000+ notes is the scale it is field-tested at daily, not a limit; there is no row cap anywhere in the plugin.
 
-[![Buy me a coffee](https://cdn.buymeacoffee.com/buttons/default-yellow.png)](https://buymeacoffee.com/powerplugins)
-
 ![A Gantt-style timeline of twelve tasks, each drawn as a bar from its start to its end date and colored by status, with the view switcher open showing board, table, calendar and timeline](docs/images/timeline.png)
+
+[![Buy me a coffee](docs/images/buy-me-a-coffee.png)](https://buymeacoffee.com/powerplugins)
 
 The timeline reads a start and an end property off each note and colors the bar by a third,
 here `status`. The switcher at the top left is open in this shot: the same base carries a
