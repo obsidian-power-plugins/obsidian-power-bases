@@ -7,6 +7,10 @@ on:
   push:
     tags:
       - "*"
+  # A tag that arrives in a batch of more than three fires no push event
+  # at all, so the release it should have built never happens. This is how
+  # one is built after the fact: gh workflow run release.yml --ref <tag>
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -61,4 +65,14 @@ jobs:
             gh release create "$tag" --title "$tag" \
               --notes "See the README for what's included." \
               manifest.json main.js styles.css
+          fi
+
+          # A release built after the fact, from a tag older than the newest one,
+          # takes the "Latest" label simply by being the most recently created.
+          # BRAT and /releases/latest both follow that label, so putting it back
+          # on the highest version is the difference between recovering a missed
+          # release and quietly shipping everyone an older plugin.
+          top=$(gh release list --limit 400 --json tagName --jq '.[].tagName' | sort -V | tail -1)
+          if [ -n "$top" ] && [ "$top" != "$tag" ]; then
+            gh release edit "$top" --latest
           fi

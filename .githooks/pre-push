@@ -1,5 +1,6 @@
 #!/bin/sh
-# Two things are only expensive after they reach GitHub, so both are caught here.
+# Three things are only expensive after they reach GitHub, so all three are
+# caught here.
 #
 # 1. A commit not authored AND committed by the brand identity, or carrying a
 #    Co-Authored-By trailer. A wrong identity pins itself in the contributors
@@ -11,6 +12,13 @@
 #    the manifest and one orphan line per bump here. Obsidian resolves an
 #    install against this file, so an entry with no release behind it is an
 #    install that fails. Power Desk once advertised 53 such versions.
+#
+# 3. A version whose tag exists but whose RELEASE never happened. The tag is
+#    what fires the release workflow, so a tag with no release means the
+#    workflow never ran. GitHub does exactly that when more than three tags
+#    arrive in one push: it fires no events at all, silently, and the four tags
+#    look perfectly correct afterwards. Only GitHub knows, so this asks it once
+#    per push and stays quiet when it cannot ask.
 BRAND_EMAIL='312091367+powerplugins-dev@users.noreply.github.com'
 BRAND_NAME='Power Plugins'
 ZERO='0000000000000000000000000000000000000000'
@@ -43,6 +51,15 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     done
 done < "$refs"
 
+# One call answers for every version, so ask before the loop rather than inside
+# it. Anything less than a clean answer leaves this empty and checks 3 is
+# skipped: a hook that blocks a push because the network blinked is a hook
+# people disable.
+released=''
+if command -v gh >/dev/null 2>&1; then
+    released=$(gh release list --limit 400 --json tagName --jq '.[].tagName' 2>/dev/null)
+fi
+
 while read -r local_ref local_sha remote_ref remote_sha; do
     [ "$local_sha" = "$ZERO" ] && continue
     case "$remote_ref" in refs/heads/*) ;; *) continue ;; esac   # branches only
@@ -50,16 +67,22 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     versions=$(git show "$local_sha:versions.json" 2>/dev/null) || continue
     [ -n "$versions" ] || continue
 
-    # the version being released is exempt: land.sh puts the commit on main
-    # before its tag is pushed, so its tag need not exist on the remote yet
+    # the version being released is exempt: its commit lands on main before its
+    # tag is pushed, so neither tag nor release exists yet
     current=$(git show "$local_sha:manifest.json" 2>/dev/null |
         sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 
     for v in $(printf '%s\n' "$versions" |
                sed -n 's/^[[:space:]]*"\([0-9][0-9.]*\)"[[:space:]]*:.*/\1/p'); do
         [ "$v" = "$current" ] && continue
-        git rev-parse -q --verify "refs/tags/$v" >/dev/null 2>&1 && continue
-        echo "BLOCKED versions.json advertises $v, which has no tag"
+        if ! git rev-parse -q --verify "refs/tags/$v" >/dev/null 2>&1; then
+            echo "BLOCKED versions.json advertises $v, which has no tag"
+            fail=1
+            continue
+        fi
+        [ -n "$released" ] || continue
+        printf '%s\n' "$released" | grep -qx "$v" && continue
+        echo "BLOCKED $v is tagged but was never released, so nothing can install it"
         fail=1
     done
 done < "$refs"
@@ -69,9 +92,11 @@ rm -f "$refs"
 if [ "$fail" -ne 0 ]; then
     echo
     echo "Push refused."
-    echo "Wrong name:     git commit --amend --reset-author, or rerun brand-identity.sh"
+    echo "Wrong name:       git commit --amend --reset-author, or rerun brand-identity.sh"
     echo "Untagged version: tag and release it, or drop the line from versions.json."
     echo "                  A version advertised there with no release cannot be installed."
+    echo "Tagged, unreleased: gh workflow run release.yml --ref <version>"
+    echo "                  Push tags ONE at a time; more than three at once fires no events."
     exit 1
 fi
 exit 0
