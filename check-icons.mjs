@@ -24,8 +24,43 @@ import { homedir } from "os";
 import { join } from "path";
 import process from "process";
 
+/**
+ * The asar Obsidian actually runs.
+ *
+ * Obsidian updates itself without touching the installer: it downloads
+ * obsidian-<version>.asar into the user's config folder and loads that instead
+ * of the copy under Program Files, which stays at whatever version was last
+ * installed by hand. Checking the installer copy therefore checks a version
+ * nobody is running, and that is not a theoretical gap. It is how
+ * `icon: "youtube"` passed this check against 1.12.7 and drew an empty slot in
+ * the launcher on 1.13.4, which is the release that dropped the brand icons.
+ *
+ * Newest wins, because several downloaded versions accumulate there.
+ */
+const selfUpdated = () => {
+	const dirs = [
+		process.env.APPDATA ? join(process.env.APPDATA, "obsidian") : null,
+		join(homedir(), "Library", "Application Support", "obsidian"),
+		join(homedir(), ".config", "obsidian"),
+	].filter(Boolean);
+	const found = [];
+	for (const dir of dirs) {
+		if (!existsSync(dir)) continue;
+		for (const name of readdirSync(dir)) {
+			const m = /^obsidian-(\d+(?:\.\d+)*)\.asar$/.exec(name);
+			if (m) found.push([m[1].split(".").map(Number), join(dir, name)]);
+		}
+	}
+	found.sort(([a], [b]) => {
+		for (let i = 0; i < Math.max(a.length, b.length); i++) if ((a[i] ?? 0) !== (b[i] ?? 0)) return (b[i] ?? 0) - (a[i] ?? 0);
+		return 0;
+	});
+	return found.length ? found[0][1] : null;
+};
+
 const candidates = [
 	process.env.OBSIDIAN_ASAR,
+	selfUpdated(),
 	process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, "Obsidian", "resources", "obsidian.asar") : null,
 	process.env.PROGRAMFILES ? join(process.env.PROGRAMFILES, "Obsidian", "resources", "obsidian.asar") : null,
 	"/Applications/Obsidian.app/Contents/Resources/obsidian.asar",
