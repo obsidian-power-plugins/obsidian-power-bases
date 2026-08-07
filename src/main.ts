@@ -650,14 +650,20 @@ class PowerBasesSettingTab extends PluginSettingTab {
 		head.createSpan({ cls: "pb-about-version", text: "v" + this.plugin.manifest.version });
 		el.createDiv({ cls: "pb-about-desc", text: this.plugin.manifest.description });
 		// One Buy Me a Coffee page serves every Power Plugin, and a payment says
-		// nothing about which one it came from. The note that rides along does, so
-		// the ask is to name the plugin in it. The name is read from the manifest
-		// rather than written out here, so it cannot drift from what the plugin is
-		// actually called.
+		// nothing about which one it came from, nor about what the person wanted.
+		// The note that rides along can carry both, so it asks for both. The name is
+		// read from the manifest rather than written out here, so it cannot drift
+		// from what the plugin is actually called.
+		//
+		// It invites a request without promising to build one. What can be built
+		// depends on what the mailbox and vault APIs allow, and a promise broken at
+		// the price of a coffee would cost more than never making it. The last
+		// sentence points at what has already happened instead, which is true and
+		// commits to nothing.
 		const support = el.createDiv({ cls: "pb-about-support" });
 		support.createEl("a", { text: "Buy me a coffee", href: "https://buymeacoffee.com/powerplugins" });
 		support.createSpan({
-			text: `. One page covers every Power Plugin, so mention ${this.plugin.manifest.name} in the note and I will know which one to keep working on.`,
+			text: `. One page covers every Power Plugin, so mention ${this.plugin.manifest.name} in the note, and say what would make it better while you are there. A good deal of what is in these plugins started as someone's note.`,
 		});
 	}
 
