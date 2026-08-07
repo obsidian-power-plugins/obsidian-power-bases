@@ -1676,6 +1676,16 @@ input.pb-check {
 	padding: 1px 6px;
 }
 
+/* the support line under the masthead: the description's muted weight, with
+   air above it so it reads as an aside rather than a second sentence of the
+   description */
+.pb-about-support {
+	margin-top: 8px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	line-height: 1.5;
+}
+
 .pb-about-desc {
 	margin-top: 4px;
 	font-size: var(--font-ui-smaller);
