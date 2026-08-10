@@ -79,10 +79,11 @@ export function monthGrid(year: number, month0: number, weekStartsMonday: boolea
 	return cells;
 }
 
-/** Board lanes: the saved order first (only values that still exist), then
- *  any new values in first-seen order. Null/empty group values are the
- *  caller's "no value" lane and never appear here. */
-export function boardColumns(values: (string | null)[], saved: string[]): string[] {
+/** Board lanes: the saved order first, then any new values in first-seen
+ *  order. Null/empty group values are the caller's "no value" lane and never
+ *  appear here. When keepSaved is true, saved lanes that no longer have any
+ *  live entries are preserved (so empty lanes stay on the board). */
+export function boardColumns(values: (string | null)[], saved: string[], keepSaved = false): string[] {
 	const live: string[] = [];
 	const seen = new Set<string>();
 	for (const v of values) {
@@ -93,7 +94,11 @@ export function boardColumns(values: (string | null)[], saved: string[]): string
 		}
 	}
 	const out: string[] = [];
-	for (const s of saved) if (seen.has(s) && !out.includes(s)) out.push(s);
+	for (const s of saved) {
+		if (keepSaved || seen.has(s)) {
+			if (!out.includes(s)) out.push(s);
+		}
+	}
 	for (const v of live) if (!out.includes(v)) out.push(v);
 	return out;
 }
