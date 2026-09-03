@@ -975,7 +975,7 @@ export default class PowerBasesPlugin extends Plugin {
 		const order = view.config.getOrder();
 		switch (view.type) {
 			case "powerbases-board":
-				return ["pbGroup", "pbRows", "rankProp", "showEmpty", "pbAggProp", "pbAggOp", "cardProps", "pb-colOrder", "pb-rules", "pb-wip", "pb-templates"];
+				return ["pbGroup", "pbRows", "rankProp", "showEmpty", "keepEmptyLanes", "pbAggProp", "pbAggOp", "cardProps", "pb-colOrder", "pb-rules", "pb-wip", "pb-templates"];
 			case "powerbases-table":
 				return [
 					"pbRankProp",
@@ -986,11 +986,11 @@ export default class PowerBasesPlugin extends Plugin {
 			case "powerbases-calendar":
 				return ["dateProp", "calMode", "weekStart"];
 			case "powerbases-timeline":
-				return ["startProp", "endProp", "colorProp", "milestoneProp", "progressProp", "depProp", "zoom"];
+				return ["startProp", "endProp", "colorProp", "milestoneProp", "progressProp", "depProp", "zoom", "labelMode"];
 			case "powerbases-chart":
 				return ["chartType", "groupProp", "chartAgg", "valueProp", "sortValue"];
 			case "powerbases-gallery":
-				return ["imageProp", "cardSize", "fitCover"];
+				return ["imageProp", "cardSize", "coverMode"];
 			default:
 				return [];
 		}
@@ -1254,37 +1254,56 @@ export default class PowerBasesPlugin extends Plugin {
 						filter: (p: BasesPropertyId) => p.startsWith("note."),
 					},
 					{
-						type: "property",
-						key: "pbRows",
-						displayName: "Swimlane rows (optional)",
-						filter: (p: BasesPropertyId) => p.startsWith("note."),
+						type: "group",
+						displayName: "Layout",
+						items: [
+							{
+								type: "property",
+								key: "pbRows",
+								displayName: "Swimlane rows (optional)",
+								filter: (p: BasesPropertyId) => p.startsWith("note."),
+							},
+							{
+								type: "property",
+								key: "rankProp",
+								displayName: "Manual order property",
+								filter: (p: BasesPropertyId) => p.startsWith("note."),
+							},
+							{ type: "toggle", key: "showEmpty", displayName: "Show a lane for missing values", default: true },
+							{ type: "toggle", key: "keepEmptyLanes", displayName: "Keep empty lanes", default: false },
+						],
 					},
 					{
-						type: "property",
-						key: "rankProp",
-						displayName: "Manual order property",
-						filter: (p: BasesPropertyId) => p.startsWith("note."),
+						type: "group",
+						displayName: "Lane totals",
+						items: [
+							{
+								type: "property",
+								key: "pbAggProp",
+								displayName: "Lane totals property (optional)",
+								filter: (p: BasesPropertyId) => p.startsWith("note."),
+							},
+							{
+								type: "dropdown",
+								key: "pbAggOp",
+								displayName: "Lane totals aggregate",
+								default: "sum",
+								options: { sum: "Sum", avg: "Average", min: "Min", max: "Max", filled: "Filled" },
+							},
+						],
 					},
-					{ type: "toggle", key: "showEmpty", displayName: "Show a lane for missing values", default: true },
 					{
-						type: "property",
-						key: "pbAggProp",
-						displayName: "Lane totals property (optional)",
-						filter: (p: BasesPropertyId) => p.startsWith("note."),
-					},
-					{
-						type: "dropdown",
-						key: "pbAggOp",
-						displayName: "Lane totals aggregate",
-						default: "sum",
-						options: { sum: "Sum", avg: "Average", min: "Min", max: "Max", filled: "Filled" },
-					},
-					{
-						type: "dropdown",
-						key: "cardProps",
-						displayName: "Properties per card",
-						default: "3",
-						options: { "0": "None", "1": "1", "2": "2", "3": "3", "4": "4", "6": "6" },
+						type: "group",
+						displayName: "Cards",
+						items: [
+							{
+								type: "dropdown",
+								key: "cardProps",
+								displayName: "Properties per card",
+								default: "3",
+								options: { "0": "None", "1": "1", "2": "2", "3": "3", "4": "4", "6": "6" },
+							},
+						],
 					},
 				],
 			}),
@@ -1300,18 +1319,24 @@ export default class PowerBasesPlugin extends Plugin {
 						filter: (p: BasesPropertyId) => p.startsWith("note."),
 					},
 					{
-						type: "dropdown",
-						key: "calMode",
-						displayName: "Show",
-						default: "month",
-						options: { month: "Month", week: "Week" },
-					},
-					{
-						type: "dropdown",
-						key: "weekStart",
-						displayName: "Week starts on",
-						default: "monday",
-						options: { monday: "Monday", sunday: "Sunday" },
+						type: "group",
+						displayName: "Display",
+						items: [
+							{
+								type: "dropdown",
+								key: "calMode",
+								displayName: "Show",
+								default: "month",
+								options: { month: "Month", week: "Week" },
+							},
+							{
+								type: "dropdown",
+								key: "weekStart",
+								displayName: "Week starts on",
+								default: "monday",
+								options: { monday: "Monday", sunday: "Sunday" },
+							},
+						],
 					},
 				],
 			}),
@@ -1417,35 +1442,60 @@ export default class PowerBasesPlugin extends Plugin {
 						filter: (p: BasesPropertyId) => p.startsWith("note."),
 					},
 					{
-						type: "property",
-						key: "colorProp",
-						displayName: "Color bars by (optional)",
-						filter: (p: BasesPropertyId) => p.startsWith("note."),
+						type: "group",
+						displayName: "Bar appearance",
+						items: [
+							{
+								type: "property",
+								key: "colorProp",
+								displayName: "Color bars by (optional)",
+								filter: (p: BasesPropertyId) => p.startsWith("note."),
+							},
+							{
+								type: "property",
+								key: "milestoneProp",
+								displayName: "Milestone property (optional)",
+								filter: (p: BasesPropertyId) => p.startsWith("note."),
+							},
+							{
+								type: "property",
+								key: "progressProp",
+								displayName: "Progress property (optional)",
+								filter: (p: BasesPropertyId) => p.startsWith("note."),
+							},
+						],
 					},
 					{
-						type: "property",
-						key: "milestoneProp",
-						displayName: "Milestone property (optional)",
-						filter: (p: BasesPropertyId) => p.startsWith("note."),
+						type: "group",
+						displayName: "Dependencies",
+						items: [
+							{
+								type: "property",
+								key: "depProp",
+								displayName: "Depends-on property (optional)",
+								filter: (p: BasesPropertyId) => p.startsWith("note."),
+							},
+						],
 					},
 					{
-						type: "property",
-						key: "progressProp",
-						displayName: "Progress property (optional)",
-						filter: (p: BasesPropertyId) => p.startsWith("note."),
-					},
-					{
-						type: "property",
-						key: "depProp",
-						displayName: "Depends-on property (optional)",
-						filter: (p: BasesPropertyId) => p.startsWith("note."),
-					},
-					{
-						type: "dropdown",
-						key: "zoom",
-						displayName: "Zoom",
-						default: "week",
-						options: { day: "Days", week: "Weeks", month: "Months" },
+						type: "group",
+						displayName: "Display",
+						items: [
+							{
+								type: "dropdown",
+								key: "zoom",
+								displayName: "Zoom",
+								default: "week",
+								options: { day: "Days", week: "Weeks", month: "Months" },
+							},
+							{
+								type: "dropdown",
+								key: "labelMode",
+								displayName: "Labels",
+								default: "side",
+								options: { side: "Side column", bars: "On bars" },
+							},
+						],
 					},
 				],
 			}),
@@ -1462,25 +1512,37 @@ export default class PowerBasesPlugin extends Plugin {
 						options: { bar: "Bar", line: "Line", donut: "Donut" },
 					},
 					{
-						type: "property",
-						key: "groupProp",
-						displayName: "Group by",
-						filter: (p: BasesPropertyId) => p.startsWith("note.") || p === "file.name",
+						type: "group",
+						displayName: "Data",
+						items: [
+							{
+								type: "property",
+								key: "groupProp",
+								displayName: "Group by",
+								filter: (p: BasesPropertyId) => p.startsWith("note.") || p === "file.name",
+							},
+							{
+								type: "dropdown",
+								key: "chartAgg",
+								displayName: "Measure",
+								default: "count",
+								options: { count: "Count", sum: "Sum", avg: "Average", min: "Min", max: "Max" },
+							},
+							{
+								type: "property",
+								key: "valueProp",
+								displayName: "Measure property (for sum/avg/...)",
+								filter: (p: BasesPropertyId) => p.startsWith("note."),
+							},
+						],
 					},
 					{
-						type: "dropdown",
-						key: "chartAgg",
-						displayName: "Measure",
-						default: "count",
-						options: { count: "Count", sum: "Sum", avg: "Average", min: "Min", max: "Max" },
+						type: "group",
+						displayName: "Display",
+						items: [
+							{ type: "toggle", key: "sortValue", displayName: "Sort bars by value", default: false },
+						],
 					},
-					{
-						type: "property",
-						key: "valueProp",
-						displayName: "Measure property (for sum/avg/...)",
-						filter: (p: BasesPropertyId) => p.startsWith("note."),
-					},
-					{ type: "toggle", key: "sortValue", displayName: "Sort bars by value", default: false },
 				],
 			}),
 			this.registerBasesView("powerbases-gallery", {
@@ -1495,13 +1557,25 @@ export default class PowerBasesPlugin extends Plugin {
 						filter: (p: BasesPropertyId) => p.startsWith("note."),
 					},
 					{
-						type: "dropdown",
-						key: "cardSize",
-						displayName: "Card size",
-						default: "medium",
-						options: { small: "Small", medium: "Medium", large: "Large" },
+						type: "group",
+						displayName: "Display",
+						items: [
+							{
+								type: "dropdown",
+								key: "cardSize",
+								displayName: "Card size",
+								default: "medium",
+								options: { small: "Small", medium: "Medium", large: "Large" },
+							},
+							{
+								type: "dropdown",
+								key: "coverMode",
+								displayName: "Covers",
+								default: "original",
+								options: { none: "None", crop: "Crop to Fill", original: "Original" },
+							},
+						],
 					},
-					{ type: "toggle", key: "fitCover", displayName: "Crop covers to fill", default: true },
 				],
 			}),
 		];
@@ -2118,7 +2192,17 @@ class PowerBoardView extends PBView {
 			return s === "" ? null : s;
 		});
 		const savedRaw = this.config.get("pb-colOrder");
-		const cols = boardColumns(values, Array.isArray(savedRaw) ? (savedRaw as string[]) : []);
+		const keepEmptyLanes = this.config.get("keepEmptyLanes") === true;
+		const savedCols = Array.isArray(savedRaw) ? (savedRaw as string[]) : [];
+		const cols = boardColumns(values, savedCols, keepEmptyLanes);
+		// auto-save lane values so they persist when keepEmptyLanes is on
+		if (keepEmptyLanes) {
+			const merged = [...cols];
+			for (const s of savedCols) if (!merged.includes(s)) merged.push(s);
+			if (merged.length !== savedCols.length || !savedCols.every((s, i) => s === merged[i])) {
+				this.config.set("pb-colOrder", merged);
+			}
+		}
 		const showEmpty = this.config.get("showEmpty") !== false;
 		const rowBy = this.config.getAsPropertyId("pbRows");
 		const rowByProp = rowBy && rowBy !== groupBy ? rowBy : null;
@@ -2128,7 +2212,8 @@ class PowerBoardView extends PBView {
 			.getOrder()
 			.filter((p) => p !== groupBy && p !== "file.name" && p !== rowByProp)
 			.slice(0, cardProps);
-		const lanes: { key: string | null; label: string }[] = cols.map((c) => ({ key: c, label: c }));
+		const stripTag = (s: string) => s.startsWith("#") ? s.slice(1) : s;
+		const lanes: { key: string | null; label: string }[] = cols.map((c) => ({ key: c, label: stripTag(c) }));
 		if (showEmpty) lanes.push({ key: null, label: "No " + this.config.getDisplayName(groupBy) });
 		const rankProp = this.config.getAsPropertyId("rankProp");
 		const rankKey = rankProp && rankProp !== groupBy ? frontmatterKey(rankProp) : null;
@@ -2267,7 +2352,7 @@ class PowerBoardView extends PBView {
 			const s = this.text(en, o.rowByProp);
 			return s === "" ? null : s;
 		});
-		const rows: { key: string | null; label: string }[] = boardColumns(rowVals, []).map((r) => ({ key: r, label: r }));
+		const rows: { key: string | null; label: string }[] = boardColumns(rowVals, []).map((r) => ({ key: r, label: r.startsWith("#") ? r.slice(1) : r }));
 		if (o.showEmpty || rowVals.some((v) => v == null)) {
 			rows.push({ key: null, label: "No " + this.config.getDisplayName(o.rowByProp) });
 		}
@@ -2722,6 +2807,31 @@ class PowerBoardView extends PBView {
 				.setIcon("settings-2")
 				.onClick(() => new LaneSettingsModal(this.app, this, key).open())
 		);
+		// delete lane: only meaningful for saved/persisted lanes (keepEmptyLanes)
+		const savedRaw = this.config.get("pb-colOrder");
+		const savedCols = Array.isArray(savedRaw) ? (savedRaw as string[]) : [];
+		if (savedCols.includes(key)) {
+			menu.addItem((i) =>
+				i
+					.setTitle("Delete lane")
+					.setIcon("trash")
+					.onClick(() => {
+						this.config.set("pb-colOrder", savedCols.filter((c) => c !== key));
+						// also clear rules/wip for this lane
+						const rules = this.asRules(this.config.get("pb-rules"));
+						if (rules[key]) {
+							delete rules[key];
+							this.config.set("pb-rules", Object.keys(rules).length ? rules : null);
+						}
+						const wip = this.asWip(this.config.get("pb-wip"));
+						if (wip[key] != null) {
+							delete wip[key];
+							this.config.set("pb-wip", Object.keys(wip).length ? wip : null);
+						}
+						this.onDataUpdated();
+					})
+			);
+		}
 		menu.showAtPosition({ x, y });
 	}
 
@@ -7344,6 +7454,7 @@ class PowerTimelineView extends PBView {
 		const startKeyName = frontmatterKey(startProp);
 		const endKeyName = endProp ? frontmatterKey(endProp) : null;
 		const zoom = String(this.config.get("zoom") ?? "week");
+		const labelMode = String(this.config.get("labelMode") ?? "side");
 		const ppd = zoom === "day" ? 44 : zoom === "month" ? 5 : 16;
 		const now = new Date();
 		const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -7367,13 +7478,13 @@ class PowerTimelineView extends PBView {
 			7
 		);
 		const totalDays = dayDiff(range.from, range.to) + 1;
-		const NAMEW = 220;
+		const NAMEW = labelMode === "bars" ? 0 : 220;
 
 		const top = root.createDiv({ cls: "pb-tl-top" });
 		const todayBtn = top.createEl("button", { cls: "pb-cal-btn", text: "Today" });
 
 		const scroll = root.createDiv({ cls: "pb-tl-scroll" });
-		const inner = scroll.createDiv({ cls: "pb-tl-inner" });
+		const inner = scroll.createDiv({ cls: "pb-tl-inner" + (labelMode === "bars" ? " pb-tl-nolabel" : "") });
 		inner.style.width = NAMEW + totalDays * ppd + "px";
 		if (zoom !== "month") {
 			// weekend stripes: one gradient, aligned to the first Saturday
@@ -7500,9 +7611,11 @@ class PowerTimelineView extends PBView {
 		const barEls = new Map<string, HTMLElement>();
 		const renderItemRow = (it: { en: BasesEntry; start: string; end: string }) => {
 			const row = inner.createDiv({ cls: "pb-tl-row" });
-			const name = row.createDiv({ cls: "pb-tl-name", text: it.en.file.basename });
-			name.addEventListener("click", (ev) => this.open(it.en.file, ev));
-			this.hoverable(name, it.en.file);
+			if (labelMode !== "bars") {
+				const name = row.createDiv({ cls: "pb-tl-name", text: it.en.file.basename });
+				name.addEventListener("click", (ev) => this.open(it.en.file, ev));
+				this.hoverable(name, it.en.file);
+			}
 			const cell = row.createDiv({ cls: "pb-tl-cell" });
 			cell.style.width = totalDays * ppd + "px";
 			const off = Math.max(0, dayDiff(range.from, it.start));
@@ -7510,7 +7623,7 @@ class PowerTimelineView extends PBView {
 			const msVal = milestoneProp ? this.text(it.en, milestoneProp) : "";
 			const milestone = msVal !== "" && msVal !== "false" && msVal !== "0";
 			const bar = cell.createDiv({
-				cls: "pb-tl-bar" + (milestone ? " pb-tl-ms" : ""),
+				cls: "pb-tl-bar" + (milestone ? " pb-tl-ms" : "") + (labelMode === "bars" ? " pb-tl-bar-label" : ""),
 				attr: { title: it.en.file.basename + "  " + it.start + (it.end !== it.start ? " to " + it.end : "") },
 			});
 			barEls.set(it.en.file.path, bar);
@@ -7529,6 +7642,9 @@ class PowerTimelineView extends PBView {
 			}
 			bar.style.left = off * ppd + "px";
 			bar.style.width = Math.max(8, (endOff - off + 1) * ppd - 2) + "px";
+			if (labelMode === "bars") {
+				const lbl = bar.createDiv({ cls: "pb-tl-bar-text", text: it.en.file.basename });
+			}
 			if (progressProp) {
 				const pct = progressPct(frontmatterOf(this.app, it.en.file)?.[frontmatterKey(progressProp)]);
 				if (pct != null) {
@@ -7905,7 +8021,7 @@ class PowerGalleryView extends PBView {
 		root.empty();
 		root.className = "pb-root pb-gallery pb-gallery-" + String(this.config.get("cardSize") ?? "medium");
 		const imageProp = this.config.getAsPropertyId("imageProp");
-		const fit = this.config.get("fitCover") !== false;
+		const coverMode = String(this.config.get("coverMode") ?? "original");
 		const shown = this.config.getOrder().filter((p) => p !== "file.name" && p !== imageProp);
 		const head = root.createDiv({ cls: "pb-view-head" });
 		this.filterBox(head, "Filter pages…");
@@ -7914,17 +8030,19 @@ class PowerGalleryView extends PBView {
 		const grid = root.createDiv({ cls: "pb-gallery-grid" });
 		this.chunk(grid, root, entries, (en) => {
 			const card = grid.createDiv({ cls: "pb-gcard", attr: { "data-path": en.file.path } });
-			const cover = card.createDiv({ cls: "pb-gcover" + (fit ? " pb-fit" : "") });
-			const src = this.coverSrc(en, imageProp);
-			if (src) {
-				const img = cover.createEl("img", { attr: { loading: "lazy", src } });
-				img.addEventListener("error", () => {
+			if (coverMode !== "none") {
+				const cover = card.createDiv({ cls: "pb-gcover" + (coverMode === "crop" ? " pb-fit" : "") });
+				const src = this.coverSrc(en, imageProp);
+				if (src) {
+					const img = cover.createEl("img", { attr: { loading: "lazy", src } });
+					img.addEventListener("error", () => {
+						cover.addClass("pb-gcover-none");
+						img.remove();
+					});
+				} else {
 					cover.addClass("pb-gcover-none");
-					img.remove();
-				});
-			} else {
-				cover.addClass("pb-gcover-none");
-				setIcon(cover.createSpan({ cls: "pb-gcover-icon" }), "image");
+					setIcon(cover.createSpan({ cls: "pb-gcover-icon" }), "image");
+				}
 			}
 			const meta = card.createDiv({ cls: "pb-gmeta" });
 			meta.createDiv({ cls: "pb-gtitle", text: en.file.basename });

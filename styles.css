@@ -935,6 +935,32 @@ button.pb-lane-fold svg {
 	border-radius: 0 5px 5px 0;
 }
 
+/* labels rendered inside the bar (labelMode: "On bars") */
+.pb-tl-bar-text {
+	position: absolute;
+	left: 6px;
+	top: 0;
+	bottom: 0;
+	right: 6px;
+	z-index: 4;
+	display: flex;
+	align-items: center;
+	font-size: 11px;
+	font-weight: 500;
+	color: var(--text-on-accent);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	pointer-events: none;
+}
+
+/* no side label column: collapse the sticky corner to zero width */
+.pb-tl-nolabel .pb-tl-corner {
+	flex: 0 0 0;
+	width: 0;
+	border-right: none;
+}
+
 /* ---------- Power Calendar ---------- */
 
 .pb-cal {
